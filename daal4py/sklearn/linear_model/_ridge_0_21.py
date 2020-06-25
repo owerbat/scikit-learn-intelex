@@ -17,13 +17,14 @@
 
 import numpy as np
 from scipy import sparse as sp
-from sklearn.utils import check_array, check_X_y
+from ..utils.validation import _daal_check_array, _daal_check_X_y
 from sklearn.base import RegressorMixin
 from sklearn.linear_model.ridge import _BaseRidge
 from sklearn.linear_model.ridge import Ridge as Ridge_original
 
 import daal4py
-from .._utils import (make2d, getFPType, method_uses_sklearn, method_uses_daal)
+from .._utils import (make2d, getFPType, method_uses_sklearn, method_uses_daal, \
+                    get_dtype)
 import logging
 
 
@@ -33,7 +34,7 @@ def _daal4py_fit(self, X, y_):
 
     _fptype = getFPType(X)
 
-    ridge_params = np.asarray(self.alpha, dtype=X.dtype)
+    ridge_params = np.asarray(self.alpha, dtype=get_dtype(X))
     if ridge_params.size != 1 and ridge_params.size != y.shape[1]:
         raise ValueError("alpha length is wrong")
     ridge_params = ridge_params.reshape((1,-1))
@@ -94,14 +95,15 @@ def fit(self, X, y, sample_weight=None):
     -------
     self : returns an instance of self.
     """
-    X, y = check_X_y(X, y, ['csr', 'csc', 'coo'], dtype=[np.float64, np.float32],
+    X, y = _daal_check_X_y(X, y, ['csr', 'csc', 'coo'], dtype=[np.float64, np.float32],
             multi_output=True, y_numeric=True)
+    dtype = get_dtype(X)
     self.sample_weight_ = sample_weight
     self.fit_shape_good_for_daal_ = True if X.shape[0] >= X.shape[1] else False
     if (not self.solver == 'auto' or
             sp.issparse(X) or
             not self.fit_shape_good_for_daal_ or
-            not (X.dtype == np.float64 or X.dtype == np.float32) or
+            not (dtype == np.float64 or dtype == np.float32) or
             sample_weight is not None):
         if hasattr(self, 'daal_model_'):
             del self.daal_model_
@@ -125,14 +127,15 @@ def predict(self, X):
     C : array, shape = (n_samples,)
         Returns predicted values.
     """
-    X = check_array(X, accept_sparse=['csr', 'csc', 'coo'])
+    X = _daal_check_array(X, accept_sparse=['csr', 'csc', 'coo'])
     good_shape_for_daal = True if X.ndim <= 1 else True if X.shape[0] >= X.shape[1] else False
+    dtype = get_dtype(X)
 
     if (not self.solver == 'auto' or
             not hasattr(self, 'daal_model_') or
             sp.issparse(X) or
             not good_shape_for_daal or
-            not (X.dtype == np.float64 or X.dtype == np.float32) or
+            not (dtype == np.float64 or dtype == np.float32) or
             (hasattr(self, 'sample_weight_') and self.sample_weight_ is not None)):
         logging.info("sklearn.linear_model.Ridge.predict: " + method_uses_sklearn)
         return self._decision_function(X)

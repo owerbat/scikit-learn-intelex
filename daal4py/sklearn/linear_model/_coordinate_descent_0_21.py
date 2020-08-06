@@ -19,11 +19,12 @@ import numpy as np
 import numbers
 import daal4py
 from scipy import sparse as sp
-from sklearn.utils import check_array, check_X_y
+from ..utils.validation import _daal_check_array, _daal_check_X_y
 from sklearn.linear_model import ElasticNet as ElasticNet_original
 from sklearn.linear_model import Lasso as Lasso_original
 from daal4py.sklearn._utils import (make2d, getFPType, method_uses_sklearn, \
-                        method_uses_daal, method_uses_sklearn_arter_daal)
+                        method_uses_daal, method_uses_sklearn_arter_daal, \
+                        get_dtype, is_DataFrame)
 import logging
 
 #only for compliance with Sklearn
@@ -49,7 +50,7 @@ def _daal4py_check(self, X, y, check_input):
     #check precompute
     if isinstance(self.precompute, np.ndarray):
         if check_input:
-            check_array(self.precompute, dtype=_fptype)
+            _daal_check_array(self.precompute, dtype=_fptype)
         self.precompute = make2d(self.precompute)
     else:
         if self.precompute not in [False, True, 'auto']:
@@ -72,20 +73,21 @@ def _daal4py_fit_enet(self, X, y_, check_input):
     self._X = X
     self._y = y
 
-    penalty_L1 = np.asarray(self.alpha*self.l1_ratio, dtype=X.dtype)
-    penalty_L2 = np.asarray(self.alpha*(1.0 - self.l1_ratio), dtype=X.dtype)
+    dtype = get_dtype(X)
+    penalty_L1 = np.asarray(self.alpha*self.l1_ratio, dtype=dtype)
+    penalty_L2 = np.asarray(self.alpha*(1.0 - self.l1_ratio), dtype=dtype)
     if (penalty_L1.size != 1 or penalty_L2.size != 1):
         raise ValueError("alpha or l1_ratio length is wrong")
     penalty_L1 = penalty_L1.reshape((1,-1))
     penalty_L2 = penalty_L2.reshape((1,-1))
 
     #normalizing and centering
-    X_offset = np.zeros(X.shape[1], dtype=X.dtype)
-    X_scale = np.ones(X.shape[1], dtype=X.dtype)
+    X_offset = np.zeros(X.shape[1], dtype=dtype)
+    X_scale = np.ones(X.shape[1], dtype=dtype)
     if y.ndim == 1:
-        y_offset = X.dtype.type(0)
+        y_offset = dtype.type(0)
     else:
-        y_offset = np.zeros(y.shape[1], dtype=X.dtype)
+        y_offset = np.zeros(y.shape[1], dtype=dtype)
 
     if self.fit_intercept:
         X_offset = np.average(X, axis=0)
@@ -210,18 +212,19 @@ def _daal4py_fit_lasso(self, X, y_, check_input):
     X = make2d(X)
     y = make2d(y_)
     _fptype = getFPType(X)
+    dtype = get_dtype(X)
 
     #only for dual_gap computation, it is not required for DAAL
     self._X = X
     self._y = y
 
     #normalizing and centering
-    X_offset = np.zeros(X.shape[1], dtype=X.dtype)
-    X_scale = np.ones(X.shape[1], dtype=X.dtype)
+    X_offset = np.zeros(X.shape[1], dtype=dtype)
+    X_scale = np.ones(X.shape[1], dtype=dtype)
     if y.ndim == 1:
         y_offset = X.dtype.type(0)
     else:
-        y_offset = np.zeros(y.shape[1], dtype=X.dtype)
+        y_offset = np.zeros(y.shape[1], dtype=dtype)
 
     if self.fit_intercept:
         X_offset = np.average(X, axis=0)
@@ -276,7 +279,7 @@ def _daal4py_fit_lasso(self, X, y_, check_input):
         method = 'defaultDense',
         interceptFlag = (self.fit_intercept is True),
         dataUseInComputation = 'doUse' if ((self.copy_X is False) or (self.fit_intercept and self.normalize and self.copy_X)) else 'doNotUse',
-        lassoParameters = np.asarray(self.alpha, dtype=X.dtype).reshape((1,-1)),
+        lassoParameters = np.asarray(self.alpha, dtype=dtype).reshape((1,-1)),
         optimizationSolver = cd_solver
     )
     try:
@@ -377,22 +380,23 @@ class ElasticNet(ElasticNet_original):
         initial data in memory directly using that format.
         """
         #check X and y
+        dtype = get_dtype(X)
         if check_input:
-            X, y = check_X_y(X, y, copy=False, accept_sparse='csc', dtype=[np.float64, np.float32], multi_output=True, y_numeric=True)
-            y = check_array(y, copy=False, dtype=X.dtype.type, ensure_2d=False)
+            X, y = _daal_check_X_y(X, y, copy=False, accept_sparse='csc', dtype=[np.float64, np.float32], multi_output=True, y_numeric=True)
+            y = _daal_check_array(y, copy=False, dtype=dtype.type, ensure_2d=False)
         else:
             #only for compliance with Sklearn, this assert is not required for DAAL
             if (isinstance(X, np.ndarray) and X.flags['F_CONTIGUOUS'] == False):
                 raise ValueError("ndarray is not Fortran contiguous")
 
-        if isinstance(X, np.ndarray):
+        if isinstance(X, np.ndarray) or is_DataFrame(X):
             self.fit_shape_good_for_daal_ = True if X.ndim <= 1 else True if X.shape[0] >= X.shape[1] else False   
         else:
             self.fit_shape_good_for_daal_ = False
 
         if (sp.issparse(X) or
                 not self.fit_shape_good_for_daal_ or
-                not (X.dtype == np.float64 or X.dtype == np.float32)):
+                not (dtype == np.float64 or dtype == np.float32)):
             if hasattr(self, 'daal_model_'):
                 del self.daal_model_
             logging.info("sklearn.linear_model.ElasticNet.fit: " + method_uses_sklearn)
@@ -403,9 +407,9 @@ class ElasticNet(ElasticNet_original):
             self.n_iter_ = None
             self._gap = None
             #only for pass tests "check_estimators_fit_returns_self(readonly_memmap=True) and check_regressors_train(readonly_memmap=True)
-            if  not (X.flags.writeable):
+            if isinstance(X, np.ndarray) not (X.flags.writeable):
                 X = np.copy(X)
-            if  not (y.flags.writeable):
+            if isinstance(X, np.ndarray) not (y.flags.writeable):
                 y = np.copy(y)
             logging.info("sklearn.linear_model.ElasticNet.fit: " + method_uses_daal)
             res = _daal4py_fit_enet(self, X, y, check_input=check_input)
@@ -434,13 +438,14 @@ class ElasticNet(ElasticNet_original):
             Returns predicted values.
         """
 
-        X = check_array(X, accept_sparse=['csr', 'csc', 'coo'])
+        X = _daal_check_array(X, accept_sparse=['csr', 'csc', 'coo'])
         good_shape_for_daal = True if X.ndim <= 1 else True if X.shape[0] >= X.shape[1] else False
+        dtype = get_dtype(X)
 
         if (not hasattr(self, 'daal_model_') or
                 sp.issparse(X) or
                 not good_shape_for_daal or
-                not (X.dtype == np.float64 or X.dtype == np.float32)):
+                not (dtype == np.float64 or dtype == np.float32)):
             logging.info("sklearn.linear_model.ElasticNet.predict: " + method_uses_sklearn)
             return self._decision_function(X)
         else:
@@ -544,22 +549,23 @@ class Lasso(ElasticNet):
         initial data in memory directly using that format.
         """
         #check X and y
+        dtype = get_dtype(X)
         if check_input:
-            X, y = check_X_y(X, y, copy=False, accept_sparse='csc', dtype=[np.float64, np.float32], multi_output=True, y_numeric=True)
-            y = check_array(y, copy=False, dtype=X.dtype.type, ensure_2d=False)
+            X, y = _daal_check_X_y(X, y, copy=False, accept_sparse='csc', dtype=[np.float64, np.float32], multi_output=True, y_numeric=True)
+            y = _daal_check_array(y, copy=False, dtype=dtype.type, ensure_2d=False)
         else:
             #only for compliance with Sklearn, this assert is not required for DAAL
             if (isinstance(X, np.ndarray) and X.flags['F_CONTIGUOUS'] == False):
                 raise ValueError("ndarray is not Fortran contiguous")
 
-        if isinstance(X, np.ndarray):
+        if isinstance(X, np.ndarray) or is_DataFrame(X):
             self.fit_shape_good_for_daal_ = True if X.ndim <= 1 else True if X.shape[0] >= X.shape[1] else False  
         else:
             self.fit_shape_good_for_daal_ = False
 
         if (sp.issparse(X) or
                 not self.fit_shape_good_for_daal_ or
-                not (X.dtype == np.float64 or X.dtype == np.float32)):
+                not (dtype == np.float64 or dtype == np.float32)):
             if hasattr(self, 'daal_model_'):
                 del self.daal_model_
             logging.info("sklearn.linear_model.Lasso.fit: " + method_uses_sklearn)
@@ -570,9 +576,9 @@ class Lasso(ElasticNet):
             self.n_iter_ = None
             self._gap = None
             #only for pass tests "check_estimators_fit_returns_self(readonly_memmap=True) and check_regressors_train(readonly_memmap=True)
-            if  not (X.flags.writeable):
+            if isinstance(X, np.ndarray) not (X.flags.writeable):
                 X = np.copy(X)
-            if  not (y.flags.writeable):
+            if isinstance(X, np.ndarray) not (y.flags.writeable):
                 y = np.copy(y)
             logging.info("sklearn.linear_model.Lasso.fit: " + method_uses_daal)
             res = _daal4py_fit_lasso(self, X, y, check_input=check_input)
@@ -600,13 +606,14 @@ class Lasso(ElasticNet):
         C : array, shape = (n_samples,)
             Returns predicted values.
         """
-        X = check_array(X, accept_sparse=['csr', 'csc', 'coo'])
+        X = _daal_check_array(X, accept_sparse=['csr', 'csc', 'coo'])
         good_shape_for_daal = True if X.ndim <= 1 else True if X.shape[0] >= X.shape[1] else False
+        dtype = get_dtype(X)
 
         if (not hasattr(self, 'daal_model_') or
                 sp.issparse(X) or
                 not good_shape_for_daal or
-                not (X.dtype == np.float64 or X.dtype == np.float32)):
+                not (dtype == np.float64 or dtype == np.float32)):
             logging.info("sklearn.linear_model.Lasso.predict: " + method_uses_sklearn)
             return self._decision_function(X)
         else:

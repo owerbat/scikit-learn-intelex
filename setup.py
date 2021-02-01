@@ -260,7 +260,6 @@ def getpyexts():
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
     using_intel = os.environ.get('cc', '') in ['icc', 'icpc', 'icl', 'dpcpp']
-<<<<<<< HEAD
     eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1']
     # eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     ela = []
@@ -272,22 +271,6 @@ def getpyexts():
         eca += ['-wd4267', '-wd4244', '-wd4101', '-wd4996', '/MD']
     else:
         eca += ['-std=c++17', '-w',]  # '-D_GLIBCXX_USE_CXX11_ABI=0']
-=======
-    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API',
-           '-DD4P_VERSION="' + d4p_version + '"',
-           '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
-    ela = []
-
-    if using_intel and IS_WIN:
-        include_dir_plat.append(jp(os.environ.get('ICPP_COMPILER16', ''),
-                                   'compiler',
-                                   'include'))
-        eca += ['-std=c++11', '-w', '/MD']
-    elif not using_intel and IS_WIN:
-        eca += ['-wd4267', '-wd4244', '-wd4101', '-wd4996', '/MD']
-    else:
-        eca += ['-std=c++11', '-w', ]  # '-D_GLIBCXX_USE_CXX11_ABI=0']
->>>>>>> f909e79f224aa4e9dbc5f408b4002b7df0f52098
 
     # Security flags
     eca += get_sdl_cflags()

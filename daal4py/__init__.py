@@ -31,15 +31,17 @@ from _onedal4py import SVC
 #     "svm",
 # ]
 
-
 import logging
 import warnings
 import os
 import sys
 logLevel = os.environ.get("IDP_SKLEARN_VERBOSE")
 try:
-    if not logLevel is None:
-        logging.basicConfig(stream=sys.stdout, format='%(levelname)s: %(message)s', level=logLevel.upper())
+    if logLevel is not None:
+        logging.basicConfig(
+            stream=sys.stdout,
+            format='%(levelname)s: %(message)s', level=logLevel.upper())
 except:
     warnings.warn('Unknown level "{}" for logging.\n'
-                    'Please, use one of "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG".'.format(logLevel))
+                  'Please, use one of "CRITICAL", "ERROR", '
+                  '"WARNING", "INFO", "DEBUG".'.format(logLevel))

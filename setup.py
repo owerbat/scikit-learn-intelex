@@ -17,16 +17,12 @@
 
 # System imports
 import os
-import subprocess
 import sys
 import time
-from distutils.core import *
-from distutils      import sysconfig
-from setuptools     import setup, Extension
+from setuptools import setup, Extension
 from os.path import join as jp
 from distutils.sysconfig import get_config_vars
 from Cython.Build import cythonize
-from Cython.Distutils import build_ext
 import glob
 import numpy as np
 
@@ -55,6 +51,7 @@ elif sys.platform in ['win32', 'cygwin']:
     lib_dir = jp(dal_root, 'lib', 'intel64')
 else:
     assert False, sys.platform + ' not supported'
+
 
 def get_lib_suffix():
 
@@ -100,12 +97,16 @@ def get_lib_suffix():
 
     ld_lib_path_suffix = walk_ld_library_path()
     lib_dir_suffix = walk_libdir()
-    if find_library('onedal_core') is not None or ld_lib_path_suffix == 'onedal' or lib_dir_suffix == 'onedal':
+    if any([find_library('onedal_core') is not None,
+            ld_lib_path_suffix == 'onedal',
+            lib_dir_suffix == 'onedal']):
         return 'onedal'
-    elif find_library('daal_core') is not None or ld_lib_path_suffix == 'daal'  or lib_dir_suffix == 'daal':
+    if any([find_library('daal_core') is not None,
+            ld_lib_path_suffix == 'daal',
+            lib_dir_suffix == 'daal']):
         return 'daal'
-    else:
-        raise ImportError('Unable to import oneDAL or oneDAL lib')
+
+    raise ImportError('Unable to import oneDAL or oneDAL lib')
 
 
 def get_win_major_version():
@@ -120,14 +121,15 @@ def get_win_major_version():
     return version
 
 
-d4p_version = os.environ['DAAL4PY_VERSION'] if 'DAAL4PY_VERSION' in os.environ else time.strftime('2021.%Y%m%d.%H%M%S')
+d4p_version = (os.environ['DAAL4PY_VERSION'] if 'DAAL4PY_VERSION' in os.environ
+               else time.strftime('2021.%Y%m%d.%H%M%S'))
 
 trues = ['true', 'True', 'TRUE', '1', 't', 'T', 'y', 'Y', 'Yes', 'yes', 'YES']
 no_dist = True if 'NO_DIST' in os.environ and os.environ['NO_DIST'] in trues else False
 if not no_dist and sys.version_info <= (3, 6):
     print('distributed mode not supported for python version < 3.6\n')
     no_dist = True
-no_stream = True if 'NO_STREAM' in os.environ and os.environ['NO_STREAM'] in trues else False
+no_stream = 'NO_STREAM' in os.environ and os.environ['NO_STREAM'] in trues
 mpi_root = None if no_dist else os.environ['MPIROOT']
 dpcpp = True if 'DPCPPROOT' in os.environ else False
 dpcpp_root = None if not dpcpp else os.environ['DPCPPROOT']
@@ -156,19 +158,19 @@ ONEDAL_LIBDIRS = [daal_lib_dir]
 if IS_WIN:
     ONEDAL_LIBDIRS.append(f"{os.environ.get('CONDA_PREFIX')}/Library/lib")
 
-if no_stream :
+if no_stream:
     print('\nDisabling support for streaming mode\n')
-if no_dist :
+if no_dist:
     print('\nDisabling support for distributed mode\n')
-    DIST_CFLAGS  = []
-    DIST_CPPS    = []
+    DIST_CFLAGS = []
+    DIST_CPPS = []
     MPI_INCDIRS = []
     MPI_LIBDIRS = []
-    MPI_LIBS    = []
-    MPI_CPPS     = []
+    MPI_LIBS = []
+    MPI_CPPS = []
 else:
-    DIST_CFLAGS  = ['-D_DIST_',]
-    DIST_CPPS    = ['src/transceiver.cpp']
+    DIST_CFLAGS = ['-D_DIST_', ]
+    DIST_CPPS = ['src/transceiver.cpp']
     MPI_INCDIRS = [jp(mpi_root, 'include')]
     MPI_LIBDIRS = [jp(mpi_root, 'lib')]
     MPI_LIBNAME = getattr(os.environ, 'MPI_LIBNAME', None)
@@ -176,12 +178,12 @@ else:
         MPI_LIBS = [MPI_LIBNAME]
     elif IS_WIN:
         if os.path.isfile(jp(mpi_root, 'lib', 'mpi.lib')):
-            MPI_LIBS    = ['mpi']
+            MPI_LIBS = ['mpi']
         if os.path.isfile(jp(mpi_root, 'lib', 'impi.lib')):
-            MPI_LIBS    = ['impi']
+            MPI_LIBS = ['impi']
         assert MPI_LIBS, "Couldn't find MPI library"
     else:
-        MPI_LIBS    = ['mpi']
+        MPI_LIBS = ['mpi']
     MPI_CPPS = ['src/mpi/mpi_transceiver.cpp']
 
 #Level Zero workaround for oneDAL Beta06
@@ -221,32 +223,44 @@ else:
 
 DAAL_DEFAULT_TYPE = 'double'
 
+
 def get_sdl_cflags():
     if IS_LIN or IS_MAC:
         return DIST_CFLAGS + DPCPP_CFLAGS + ['-fstack-protector-strong', '-fPIC',
-                                             '-D_FORTIFY_SOURCE=2', '-Wformat', '-Wformat-security',
-                                             '-fno-strict-overflow', '-fno-delete-null-pointer-checks']
+                                             '-D_FORTIFY_SOURCE=2', '-Wformat',
+                                             '-Wformat-security', '-fno-strict-overflow',
+                                             '-fno-delete-null-pointer-checks']
     elif IS_WIN:
-        return DIST_CFLAGS + DPCPP_CFLAGS + ['-GS',]
+        return DIST_CFLAGS + DPCPP_CFLAGS + ['-GS', ]
+
 
 def get_sdl_ldflags():
     if IS_LIN:
-        return ['-Wl,-z,noexecstack,-z,relro,-z,now,-fstack-protector-strong,-fno-strict-overflow,-fno-delete-null-pointer-checks,-fwrapv']
+        return ['-Wl,-z,noexecstack,-z,relro,-z,now,-fstack-protector-strong,'
+                '-fno-strict-overflow,-fno-delete-null-pointer-checks,-fwrapv']
     elif IS_MAC:
-        return ['-fstack-protector-strong','-fno-strict-overflow','-fno-delete-null-pointer-checks','-fwrapv']
+        return ['-fstack-protector-strong',
+                '-fno-strict-overflow',
+                '-fno-delete-null-pointer-checks',
+                '-fwrapv']
     elif IS_WIN:
         return ['-NXCompat', '-DynamicBase']
 
+
 def get_type_defines():
-    daal_type_defines = ['DAAL_ALGORITHM_FP_TYPE', 'DAAL_SUMMARY_STATISTICS_TYPE', 'DAAL_DATA_TYPE']
+    daal_type_defines = ['DAAL_ALGORITHM_FP_TYPE',
+                         'DAAL_SUMMARY_STATISTICS_TYPE',
+                         'DAAL_DATA_TYPE']
     return ["-D{}={}".format(d, DAAL_DEFAULT_TYPE) for d in daal_type_defines]
 
+
 def getpyexts():
-    include_dir_plat = [os.path.abspath('./src'), dal_root + '/include',]
+    include_dir_plat = [os.path.abspath('./src'), dal_root + '/include', ]
     # FIXME it is a wrong place for this dependency
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
     using_intel = os.environ.get('cc', '') in ['icc', 'icpc', 'icl', 'dpcpp']
+<<<<<<< HEAD
     eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1']
     # eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     ela = []
@@ -258,6 +272,22 @@ def getpyexts():
         eca += ['-wd4267', '-wd4244', '-wd4101', '-wd4996', '/MD']
     else:
         eca += ['-std=c++17', '-w',]  # '-D_GLIBCXX_USE_CXX11_ABI=0']
+=======
+    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API',
+           '-DD4P_VERSION="' + d4p_version + '"',
+           '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
+    ela = []
+
+    if using_intel and IS_WIN:
+        include_dir_plat.append(jp(os.environ.get('ICPP_COMPILER16', ''),
+                                   'compiler',
+                                   'include'))
+        eca += ['-std=c++11', '-w', '/MD']
+    elif not using_intel and IS_WIN:
+        eca += ['-wd4267', '-wd4244', '-wd4101', '-wd4996', '/MD']
+    else:
+        eca += ['-std=c++11', '-w', ]  # '-D_GLIBCXX_USE_CXX11_ABI=0']
+>>>>>>> f909e79f224aa4e9dbc5f408b4002b7df0f52098
 
     # Security flags
     eca += get_sdl_cflags()
@@ -276,7 +306,8 @@ def getpyexts():
         ela.append("-Wl,-rpath,{}".format(daal_lib_dir))
     elif IS_WIN:
         ela.append('-IGNORE:4197')
-    elif IS_LIN and not any(x in os.environ and '-g' in os.environ[x] for x in ['CPPFLAGS', 'CFLAGS', 'LDFLAGS']):
+    elif IS_LIN and not any(x in os.environ and '-g' in os.environ[x]
+                            for x in ['CPPFLAGS', 'CFLAGS', 'LDFLAGS']):
         ela.append('-s')
 
     import glob
@@ -376,7 +407,8 @@ def gen_pyx(odir):
         src_files.sort(key=lambda x: os.path.getmtime(x))
         gtr_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
         if os.path.getmtime(src_files[0]) > os.path.getmtime(gtr_files[0]):
-            print('Generated files are all newer than generator code. Skipping code generation')
+            print('Generated files are all newer than generator code.'
+                  'Skipping code generation')
             return
 
     from generator.gen_daal4py import gen_daal4py

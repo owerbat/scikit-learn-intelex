@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #*******************************************************************************
-# Copyright 2014-2020 Intel Corporation
+# Copyright 2014-2021 Intel Corporation
 # All Rights Reserved.
 #
 # This software is licensed under the Apache License, Version 2.0 (the
@@ -18,27 +18,20 @@
 # limitations under the License.
 #*******************************************************************************
 
-# if dpc++ vars path is specified
-if [ ! -z "${DPCPPROOT}" ]; then
-    source ${DPCPPROOT}/env/vars.sh
+ok=0
+
+python -c "import daal4py"
+ok=$(($ok + $?))
+
+if $NO_DISTR; then
+    mpirun -n 4 python -m unittest discover -v -s tests -p spmd*.py
+    ok=$(($ok + $?))
 fi
 
-# if DAALROOT is specified
-if [ "${DAALROOT}" != "" ] && [ "${DALROOT}" == "" ] ; then
-    export DALROOT="${DAALROOT}"
-fi
+pytest --pyargs daal4py/sklearn/
+ok=$(($ok + $?))
 
-if [ "${DALROOT}" != "" ]; then
-    conda remove daal --force -y
-    source ${DALROOT}/env/vars.sh
-fi
+python -m unittest discover -v -s tests -p test*.py
+ok=$(($ok + $?))
 
-# if TBBROOT is specified
-if [ ! -z "${TBBROOT}" ]; then
-    conda remove tbb --force -y
-    if [ -e ${TBBROOT}/env/vars.sh ]; then
-        source ${TBBROOT}/env/vars.sh
-    else
-        export LD_LIBRARY_PATH=${TBBROOT}/lib/intel64:${LD_LIBRARY_PATH}
-    fi
-fi
+exit $ok

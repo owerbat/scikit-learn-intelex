@@ -57,7 +57,7 @@ else:
     assert False, sys.platform + ' not supported'
 
 def get_lib_suffix():
-    
+
     def walk_ld_library_path():
         if IS_WIN:
             ld_library_path = os.environ.get('LIBRARY_LIB')
@@ -152,9 +152,9 @@ else:
     assert False, sys.platform + ' not supported'
 
 daal_lib_dir = lib_dir if (IS_MAC or os.path.isdir(lib_dir)) else os.path.dirname(lib_dir)
-DAAL_LIBDIRS = [daal_lib_dir]
+ONEDAL_LIBDIRS = [daal_lib_dir]
 if IS_WIN:
-    DAAL_LIBDIRS.append(f"{os.environ.get('CONDA_PREFIX')}/Library/lib")
+    ONEDAL_LIBDIRS.append(f"{os.environ.get('CONDA_PREFIX')}/Library/lib")
 
 if no_stream :
     print('\nDisabling support for streaming mode\n')
@@ -247,16 +247,17 @@ def getpyexts():
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
     using_intel = os.environ.get('cc', '') in ['icc', 'icpc', 'icl', 'dpcpp']
-    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
+    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1']
+    # eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     ela = []
 
     if using_intel and IS_WIN:
         include_dir_plat.append(jp(os.environ.get('ICPP_COMPILER16', ''), 'compiler', 'include'))
-        eca += ['-std=c++11', '-w', '/MD']
+        eca += ['-std=c++17', '-w', '/MD']
     elif not using_intel and IS_WIN:
         eca += ['-wd4267', '-wd4244', '-wd4101', '-wd4996', '/MD']
     else:
-        eca += ['-std=c++11', '-w',]  # '-D_GLIBCXX_USE_CXX11_ABI=0']
+        eca += ['-std=c++17', '-w',]  # '-D_GLIBCXX_USE_CXX11_ABI=0']
 
     # Security flags
     eca += get_sdl_cflags()
@@ -278,54 +279,85 @@ def getpyexts():
     elif IS_LIN and not any(x in os.environ and '-g' in os.environ[x] for x in ['CPPFLAGS', 'CFLAGS', 'LDFLAGS']):
         ela.append('-s')
 
-    exts = cythonize([Extension('_daal4py',
-                                [os.path.abspath('src/daal4py.cpp'),
-                                 os.path.abspath('build/daal4py_cpp.cpp'),
-                                 os.path.abspath('build/daal4py_cy.pyx')]
-                                + DIST_CPPS,
-                                depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-                                include_dirs=include_dir_plat + [np.get_include()],
+    import glob
+
+
+    include_dirs = [
+        'daal4py/onedal4py',
+        dal_root + '/include',
+        np.get_include(),
+    ]
+
+    onedal_libraries = libraries_plat.copy()
+    onedal_libraries.extend(['onedal'])
+    print(onedal_libraries)
+    print(ONEDAL_LIBDIRS)
+    eca2 = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
+    print(' >>>>  START BUILD!')
+    exts = cythonize([Extension('_onedal4py',
+                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
+                                ["daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp", "daal4py/onedal4py/**/*.pyx"],
+                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
+                                # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+                                depends=["daal4py/onedal4py/data_management/data.cpp"],
+                                include_dirs=include_dirs,
                                 extra_compile_args=eca,
                                 extra_link_args=ela,
-                                libraries=libraries_plat,
-                                library_dirs=DAAL_LIBDIRS,
-                                language='c++'),
+                                libraries=onedal_libraries,
+                                library_dirs=ONEDAL_LIBDIRS,
+                                language='c++')
+
     ])
 
-    eca_dpcpp = eca.copy()
 
-    if dpcpp:
-        exts.extend(cythonize(Extension('_oneapi',
-                                        [os.path.abspath('src/oneapi/oneapi.pyx'),],
-                                        depends=['src/oneapi/oneapi.h',],
-                                        include_dirs=include_dir_plat + [np.get_include()],
-                                        extra_compile_args=eca_dpcpp,
-                                        extra_link_args=ela,
-                                        libraries=libraries_plat + DPCPP_LIBS,
-                                        library_dirs=DAAL_LIBDIRS + DPCPP_LIBDIRS,
-                                        language='c++')))
-    if dpctl:
-        exts.extend(cythonize(Extension('_dpctl_interop',
-                                        [os.path.abspath('src/dpctl_interop/dpctl_interop.pyx'),
-                                         os.path.abspath('src/dpctl_interop/daal_context_service.cpp'),],
-                                        depends=['src/dpctl_interop/daal_context_service.h',],
-                                        include_dirs=include_dir_plat + DPCTL_INCDIRS,
-                                        extra_compile_args=eca_dpcpp,
-                                        extra_link_args=ela,
-                                        libraries=libraries_plat + DPCPP_LIBS + DPCTL_LIBS,
-                                        library_dirs=DAAL_LIBDIRS + DPCPP_LIBDIRS + DPCTL_LIBDIRS,
-                                        language='c++')))
+    # exts = cythonize([Extension('_daal4py',
+    #                             [os.path.abspath('src/daal4py.cpp'),
+    #                              os.path.abspath('build/daal4py_cpp.cpp'),
+    #                              os.path.abspath('build/daal4py_cy.pyx')]
+    #                             + DIST_CPPS,
+    #                             depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+    #                             include_dirs=include_dir_plat + [np.get_include()],
+    #                             extra_compile_args=eca,
+    #                             extra_link_args=ela,
+    #                             libraries=libraries_plat,
+    #                             library_dirs=ONEDAL_LIBDIRS,
+    #                             language='c++'),
+    # ])
 
-    if not no_dist:
-        exts.append(Extension('mpi_transceiver',
-                              MPI_CPPS,
-                              depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-                              include_dirs=include_dir_plat + [np.get_include()] + MPI_INCDIRS,
-                              extra_compile_args=eca,
-                              extra_link_args=ela + ["-Wl,-rpath,{}".format(x) for x in MPI_LIBDIRS],
-                              libraries=libraries_plat + MPI_LIBS,
-                              library_dirs=DAAL_LIBDIRS + MPI_LIBDIRS,
-                              language='c++'))
+    # eca_dpcpp = eca.copy()
+
+    # if dpcpp:
+    #     exts.extend(cythonize(Extension('_oneapi',
+    #                                     [os.path.abspath('src/oneapi/oneapi.pyx'),],
+    #                                     depends=['src/oneapi/oneapi.h',],
+    #                                     include_dirs=include_dir_plat + [np.get_include()],
+    #                                     extra_compile_args=eca_dpcpp,
+    #                                     extra_link_args=ela,
+    #                                     libraries=libraries_plat + DPCPP_LIBS,
+    #                                     library_dirs=ONEDAL_LIBDIRS + DPCPP_LIBDIRS,
+    #                                     language='c++')))
+    # if dpctl:
+    #     exts.extend(cythonize(Extension('_dpctl_interop',
+    #                                     [os.path.abspath('src/dpctl_interop/dpctl_interop.pyx'),
+    #                                      os.path.abspath('src/dpctl_interop/daal_context_service.cpp'),],
+    #                                     depends=['src/dpctl_interop/daal_context_service.h',],
+    #                                     include_dirs=include_dir_plat + DPCTL_INCDIRS,
+    #                                     extra_compile_args=eca_dpcpp,
+    #                                     extra_link_args=ela,
+    #                                     libraries=libraries_plat + DPCPP_LIBS + DPCTL_LIBS,
+    #                                     library_dirs=ONEDAL_LIBDIRS + DPCPP_LIBDIRS + DPCTL_LIBDIRS,
+    #                                     language='c++')))
+
+    # if not no_dist:
+    #     exts.append(Extension('mpi_transceiver',
+    #                           MPI_CPPS,
+    #                           depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+    #                           include_dirs=include_dir_plat + [np.get_include()] + MPI_INCDIRS,
+    #                           extra_compile_args=eca,
+    #                           extra_link_args=ela + ["-Wl,-rpath,{}".format(x) for x in MPI_LIBDIRS],
+    #                           libraries=libraries_plat + MPI_LIBS,
+    #                           library_dirs=ONEDAL_LIBDIRS + MPI_LIBDIRS,
+    #                           language='c++'))
     return exts
 
 
@@ -354,7 +386,7 @@ def gen_pyx(odir):
     gen_daal4py(dal_root, odir, d4p_version, no_dist=no_dist, no_stream=no_stream)
 
 
-gen_pyx(os.path.abspath('./build'))
+# gen_pyx(os.path.abspath('./build'))
 
 project_urls = {
     'Bug Tracker': 'https://github.com/IntelPython/daal4py/issues',
@@ -384,22 +416,22 @@ setup(  name             = "daal4py",
             'Topic :: System',
             'Topic :: Software Development',
           ],
-        setup_requires = ['numpy>=1.14', 'cython', 'jinja2'],
-        install_requires = ['numpy>=1.14', 'daal', 'dpcpp_cpp_rt'],
+        # setup_requires = ['numpy>=1.14', 'cython', 'jinja2'],
+        # install_requires = ['numpy>=1.14', 'daal', 'dpcpp_cpp_rt'],
         packages = ['daal4py',
-                    'daal4py.oneapi',
-                    'daal4py.sklearn',
-                    'daal4py.sklearn.cluster',
-                    'daal4py.sklearn.decomposition',
-                    'daal4py.sklearn.ensemble',
-                    'daal4py.sklearn.linear_model',
-                    'daal4py.sklearn.manifold',
-                    'daal4py.sklearn.metrics',
-                    'daal4py.sklearn.neighbors',
-                    'daal4py.sklearn.monkeypatch',
-                    'daal4py.sklearn.svm',
-                    'daal4py.sklearn.utils',
-                    'daal4py.sklearn.model_selection',
+                    # 'daal4py.oneapi',
+                    # 'daal4py.sklearn',
+                    # 'daal4py.sklearn.cluster',
+                    # 'daal4py.sklearn.decomposition',
+                    # 'daal4py.sklearn.ensemble',
+                    # 'daal4py.sklearn.linear_model',
+                    # 'daal4py.sklearn.manifold',
+                    # 'daal4py.sklearn.metrics',
+                    # 'daal4py.sklearn.neighbors',
+                    # 'daal4py.sklearn.monkeypatch',
+                    # 'daal4py.sklearn.svm',
+                    # 'daal4py.sklearn.utils',
+                    # 'daal4py.sklearn.model_selection',
         ],
         ext_modules = getpyexts()
 )

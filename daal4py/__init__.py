@@ -15,14 +15,22 @@
 # limitations under the License.
 #===============================================================================
 
-try:
-    from _daal4py import *
-    from _daal4py import _get__version__, _get__daal_link_version__, _get__daal_run_version__, __has_dist__
-except ImportError as e:
-    s = str(e)
-    if 'libfabric' in s:
-        raise ImportError(s + '\n\nActivating your conda environment or sourcing mpivars.[c]sh/psxevars.[c]sh may solve the issue.\n')
-    raise
+# try:
+#     from _daal4py import *
+#     from _daal4py import _get__version__, _get__daal_link_version__, _get__daal_run_version__, __has_dist__
+# except ImportError as e:
+#     s = str(e)
+#     if 'libfabric' in s:
+#         raise ImportError(s + '\n\nActivating your conda environment or sourcing mpivars.[c]sh/psxevars.[c]sh may solve the issue.\n')
+#     raise
+
+from _onedal4py import SVC
+# import _onedal4py as sklearn_api
+
+# __all__ = [
+#     "svm",
+# ]
+
 
 import logging
 import warnings

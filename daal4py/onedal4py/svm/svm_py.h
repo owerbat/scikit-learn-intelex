@@ -32,7 +32,7 @@ public:
     double get_bias();
 
     // attributes from infer_input.hpp expect model
-    void infer(PyObject * data);
+    void infer_cpp(PyObject * data);
 
     // attributes from infer_result
     PyObject * get_labels();
@@ -43,7 +43,7 @@ public:
 private:
     svm::train_result<svm::task::classification> train_result_;
     svm::infer_result<svm::task::classification> infer_result_;
-    dal::svm::descriptor<float, dal::svm::method::thunder, dal::svm::task::classification> descriptor_; // TODO
+    dal::svm::descriptor<double, dal::svm::method::thunder, dal::svm::task::classification> descriptor_; // TODO
 };
 
 } // namespace oneapi::dal::py_svm

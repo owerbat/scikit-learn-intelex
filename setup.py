@@ -260,7 +260,7 @@ def getpyexts():
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
     using_intel = os.environ.get('cc', '') in ['icc', 'icpc', 'icl', 'dpcpp']
-    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1']
+    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1', '-g', '-O0']
     # eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     ela = []
 
@@ -303,27 +303,39 @@ def getpyexts():
     ]
 
     onedal_libraries = libraries_plat.copy()
+    onedal_dpc_libraries = libraries_plat.copy()
     onedal_libraries.extend(['onedal'])
+    onedal_dpc_libraries.extend(['onedal_dpc'])
     print(onedal_libraries)
+    print(onedal_dpc_libraries)
     print(ONEDAL_LIBDIRS)
     eca2 = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     print(' >>>>  START BUILD!')
-    exts = cythonize([Extension('_onedal4py',
-                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
-                                ["daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp", "daal4py/onedal4py/**/*.pyx"],
-                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
-                                # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-                                depends=["daal4py/onedal4py/data_management/data.cpp"],
+
+    exts = []
+    exts.extend(cythonize([Extension('_onedal4py_host',
+                                ["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp"],
                                 include_dirs=include_dirs,
                                 extra_compile_args=eca,
                                 extra_link_args=ela,
                                 libraries=onedal_libraries,
                                 library_dirs=ONEDAL_LIBDIRS,
                                 language='c++')
+    ]))
+    # exts.extend(cythonize([Extension('_onedal4py_dpc',
+    #                             # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
+    #                             ["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp"],
+    #                             # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
+    #                             # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+    #                             include_dirs=include_dirs,
+    #                             extra_compile_args=eca,
+    #                             extra_link_args=ela,
+    #                             libraries=[],
+    #                             library_dirs=[],
+    #                             language='c++')
 
-    ])
 
-
+    # ]))
     # exts = cythonize([Extension('_daal4py',
     #                             [os.path.abspath('src/daal4py.cpp'),
     #                              os.path.abspath('build/daal4py_cpp.cpp'),

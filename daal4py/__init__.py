@@ -24,7 +24,7 @@
 #         raise ImportError(s + '\n\nActivating your conda environment or sourcing mpivars.[c]sh/psxevars.[c]sh may solve the issue.\n')
 #     raise
 
-from _onedal4py import SVC
+from .onedal4py.svm import SVC
 # import _onedal4py as sklearn_api
 
 # __all__ = [

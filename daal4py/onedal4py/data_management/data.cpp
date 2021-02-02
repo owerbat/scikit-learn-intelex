@@ -52,13 +52,13 @@ inline dal::homogen_table _make_ht(PyObject * nda)
     if (array_numdims(array) == 2)
     {
         printf("[CPP]: _make_ht: array_numdims(array) == 2\n");
-        const T * data_pointer    = reinterpret_cast<T *>(array_data(array));
+        T * data_pointer          = reinterpret_cast<T *>(array_data(array));
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = static_cast<size_t>(array_size(array, 1));
         auto res_table            = dal::homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
         // we need it increment the ref-count if we use the input array in-place
         // if we copied/converted it we already own our own reference
-        // if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
+        if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
         printf("[CPP]: _make_ht: finish\n");
 
         return res_table;
@@ -66,13 +66,13 @@ inline dal::homogen_table _make_ht(PyObject * nda)
     else if (array_numdims(array) == 1)
     {
         printf("[CPP]: _make_ht: array_numdims(array) == 1\n");
-        const T * data_pointer    = reinterpret_cast<T *>(array_data(array));
+        T * data_pointer          = reinterpret_cast<T *>(array_data(array));
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = 1;
         auto res_table            = dal::homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
         // we need it increment the ref-count if we use the input array in-place
         // if we copied/converted it we already own our own reference
-        // if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
+        if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
         printf("[CPP]: _make_ht: finish\n");
 
         return res_table;
@@ -101,7 +101,19 @@ dal::table _input_to_onedal_table(PyObject * obj)
         printf("[CPP]: _input_to_onedal_table: is_array\n");
         if (array_is_behaved(ary))
         {
-            res = _make_ht<float>(obj);
+            switch (PyArray_DESCR(ary)->type)
+            {
+            case NPY_DOUBLE:
+            case NPY_CDOUBLE:
+            case NPY_DOUBLELTR:
+            case NPY_CDOUBLELTR: res = _make_ht<double>(obj); break;
+            case NPY_FLOAT:
+            case NPY_CFLOAT:
+            case NPY_FLOATLTR:
+            case NPY_CFLOATLTR: res = _make_ht<float>(obj); break;
+            default: throw std::invalid_argument("Not avalible type in input_to_onedal_table.");
+            }
+
             // #define MAKENT_(_T) res = _make_ht<_T>(obj)
             //             SET_NPY_FEATURE(PyArray_DESCR(ary)->type, MAKENT_, throw std::invalid_argument("Found unsupported array type"));
             // #undef MAKENT_
@@ -187,9 +199,18 @@ PyObject * _table_to_numpy(const dal::table & input)
                 auto rows = dal::row_accessor<const float> { homogen_res }.pull();
                 rows.need_mutable_data();
                 auto daal_data = daal::services::SharedPtr<float>(rows.get_mutable_data(), daal_object_owner { rows });
-                printf("[_table_to_numpy]: _sp_to_nda\n");
+                printf("[_table_to_numpy float32]: _sp_to_nda\n");
                 return _sp_to_nda<float, NPY_FLOAT32>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
             }
+            case dal::data_type::float64:
+            {
+                auto rows = dal::row_accessor<const double> { homogen_res }.pull();
+                rows.need_mutable_data();
+                auto daal_data = daal::services::SharedPtr<double>(rows.get_mutable_data(), daal_object_owner { rows });
+                printf("[_table_to_numpy float64]: _sp_to_nda\n");
+                return _sp_to_nda<double, NPY_FLOAT64>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
+            }
+
                 // TODO: other types
                 // TODO. How own data without copy?
             }

@@ -52,8 +52,9 @@ double classification_svm::get_bias()
 }
 
 // attributes from infer_input.hpp expect model
-void classification_svm::infer(PyObject * data)
+void classification_svm::infer_cpp(PyObject * data)
 {
+    printf("classification_svm::infer\n");
     auto data_table = _input_to_onedal_table(data);
     infer_result_   = dal::infer(descriptor_, train_result_.get_model(), data_table);
 }

@@ -1,1 +1,3 @@
-from onedal4py.svm import SVC
+from .svm import SVC
+
+__all__ = ['SVC']

@@ -35,5 +35,8 @@ cdef extern from "svm/svm_py.h" namespace "oneapi::dal::py_svm":
         int get_support_vector_count()  except +
         PyObject * get_support_vectors() except +
         PyObject * get_support_indices() except +
-
-# etc
+        PyObject * get_coeffs() except +
+        double get_bias() except +
+        void infer_cpp(PyObject * data) except +
+        PyObject * get_labels() except +
+        PyObject * get_decision_function() except +

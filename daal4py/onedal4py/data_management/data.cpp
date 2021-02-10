@@ -7,6 +7,12 @@
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
+#ifdef _DPCPP_
+    #include <CL/sycl.hpp>
+    #include "dpctl_sycl_types.h"
+    #include "dpctl_sycl_queue_manager.h"
+#endif
+
 #include "daal.h"
 
 using namespace oneapi;
@@ -43,6 +49,26 @@ private:
     PyArrayObject * _ndarray;
 };
 
+template <typename T, typename ConstDeleter>
+inline dal::homogen_table create_homogen_table(const T * data_pointer, const std::size_t row_count, const std::size_t column_count, ConstDeleter && data_deleter)
+{
+#ifdef _DPCPP_
+    auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
+    if (dpctl_queue != NULL)
+    {
+        cl::sycl::queue & sycl_queue = *reinterpret_cast<cl::sycl::queue *>(dpctl_queue);
+        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter);
+    }
+    else
+    {
+        throw std::runtime_error("Cannot set daal context: Pointer to queue object is NULL");
+    }
+#else
+
+    return dal::homogen_table(data_pointer, row_count, column_count, data_deleter);
+#endif
+}
+
 template <typename T>
 inline dal::homogen_table _make_ht(PyObject * nda)
 {
@@ -55,7 +81,7 @@ inline dal::homogen_table _make_ht(PyObject * nda)
         T * data_pointer          = reinterpret_cast<T *>(array_data(array));
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = static_cast<size_t>(array_size(array, 1));
-        auto res_table            = dal::homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
+        auto res_table            = create_homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
         // we need it increment the ref-count if we use the input array in-place
         // if we copied/converted it we already own our own reference
         if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
@@ -69,7 +95,7 @@ inline dal::homogen_table _make_ht(PyObject * nda)
         T * data_pointer          = reinterpret_cast<T *>(array_data(array));
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = 1;
-        auto res_table            = dal::homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
+        auto res_table            = create_homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
         // we need it increment the ref-count if we use the input array in-place
         // if we copied/converted it we already own our own reference
         if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);

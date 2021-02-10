@@ -22,9 +22,11 @@ class SVC(ClassifierMixin):
 
         try:
             import dpctl
+            print('DPCTL: _onedal4py_dpc')
             from _onedal4py_host import PyClassificationSvm
             # from _onedal4py_host cimport *
         except ImportError:
+            print('HOST: _onedal4py_host')
             from _onedal4py_host import PyClassificationSvm
             # from _onedal4py_host cimport *
 

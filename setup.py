@@ -196,7 +196,7 @@ with open(header_path) as header:
     dal_build_version = (int(v[0]), int(v[1]), int(v[2]), str(v[3]))
 
 if dpcpp:
-    DPCPP_CFLAGS = ['-D_DPCPP_ -fno-builtin-memset']
+    DPCPP_CFLAGS = ['-D_DPCPP_ -fno-builtin-memset' '-fsycl']
     DPCPP_LIBS = ['OpenCL', 'sycl', 'onedal_sycl']
     if IS_LIN:
         DPCPP_LIBDIRS = [jp(dpcpp_root, 'linux', 'lib')]
@@ -209,8 +209,8 @@ if dpcpp:
             DPCTL_LIBDIRS = [os.environ['DPCTL_LIBPATH']]
         else:
             DPCTL_LIBDIRS = [jp(dpctl_root, 'lib')]
-        DPCTL_INCDIRS = [jp(dpctl_root, 'include')]
-        DPCTL_LIBS = ['DPPLSyclInterface']
+        DPCTL_INCDIRS = [jp(dpcpp_root, 'include', 'sycl'), jp(dpctl_root, 'include')]
+        DPCTL_LIBS = ['DPCTLSyclInterface']
     else:
         DPCTL_INCDIRS = []
         DPCTL_LIBDIRS = []
@@ -226,12 +226,12 @@ DAAL_DEFAULT_TYPE = 'double'
 
 def get_sdl_cflags():
     if IS_LIN or IS_MAC:
-        return DIST_CFLAGS + DPCPP_CFLAGS + ['-fstack-protector-strong', '-fPIC',
+        return DIST_CFLAGS + ['-fstack-protector-strong', '-fPIC',
                                              '-D_FORTIFY_SOURCE=2', '-Wformat',
                                              '-Wformat-security', '-fno-strict-overflow',
                                              '-fno-delete-null-pointer-checks']
     elif IS_WIN:
-        return DIST_CFLAGS + DPCPP_CFLAGS + ['-GS', ]
+        return DIST_CFLAGS + ['-GS', ]
 
 
 def get_sdl_ldflags():
@@ -309,6 +309,7 @@ def getpyexts():
     print(onedal_libraries)
     print(onedal_dpc_libraries)
     print(ONEDAL_LIBDIRS)
+    print('DPCTL_LIBDIRS: ', DPCTL_LIBDIRS)
     eca2 = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     print(' >>>>  START BUILD!')
 
@@ -322,18 +323,21 @@ def getpyexts():
                                 library_dirs=ONEDAL_LIBDIRS,
                                 language='c++')
     ]))
-    # exts.extend(cythonize([Extension('_onedal4py_dpc',
-    #                             # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
-    #                             ["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp"],
-    #                             # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
-    #                             # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-    #                             include_dirs=include_dirs,
-    #                             extra_compile_args=eca,
-    #                             extra_link_args=ela,
-    #                             libraries=[],
-    #                             library_dirs=[],
-    #                             language='c++')
-
+    print('>>> DPCPP part')
+    print('> DPCTL_LIBS: ', DPCTL_LIBS)
+    print('> DPCTL_INCDIRS: ', DPCTL_INCDIRS)
+    exts.extend(cythonize([Extension('_onedal4py_dpc',
+                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
+                                ["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp"],
+                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
+                                # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+                                include_dirs=include_dirs + DPCTL_INCDIRS,
+                                extra_compile_args=eca + DPCPP_CFLAGS + ['-DONEDAL_DATA_PARALLEL'],
+                                extra_link_args=ela,
+                                libraries=onedal_libraries + DPCPP_LIBDIRS + DPCTL_LIBS,
+                                library_dirs=ONEDAL_LIBDIRS + DPCTL_LIBDIRS,
+                                language='c++')
+    ]))
 
     # ]))
     # exts = cythonize([Extension('_daal4py',

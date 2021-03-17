@@ -196,7 +196,7 @@ with open(header_path) as header:
     dal_build_version = (int(v[0]), int(v[1]), int(v[2]), str(v[3]))
 
 if dpcpp:
-    DPCPP_CFLAGS = ['-D_DPCPP_ -fno-builtin-memset' '-fsycl']
+    DPCPP_CFLAGS = ['-D_DPCPP_ -fno-builtin-memset' '-fsycl' ]
     DPCPP_LIBS = ['OpenCL', 'sycl', 'onedal_sycl']
     if IS_LIN:
         DPCPP_LIBDIRS = [jp(dpcpp_root, 'linux', 'lib')]
@@ -310,12 +310,12 @@ def getpyexts():
     print(onedal_dpc_libraries)
     print(ONEDAL_LIBDIRS)
     print('DPCTL_LIBDIRS: ', DPCTL_LIBDIRS)
-    eca2 = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
+    eca2 = [ '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     print(' >>>>  START BUILD!')
 
     exts = []
     exts.extend(cythonize([Extension('_onedal4py_host',
-                                ["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp"],
+                                ["daal4py/onedal/**/*_host.pyx", "daal4py/onedal/data_management/data.cpp", "daal4py/onedal/svm/svm_py.cpp"],
                                 include_dirs=include_dirs,
                                 extra_compile_args=eca,
                                 extra_link_args=ela,
@@ -328,14 +328,14 @@ def getpyexts():
     print('> DPCTL_INCDIRS: ', DPCTL_INCDIRS)
     exts.extend(cythonize([Extension('_onedal4py_dpc',
                                 # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
-                                ["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp", "daal4py/onedal4py/svm/svm_py.cpp"],
+                                ["daal4py/onedal/**/*_dpc.pyx", "daal4py/onedal/data_management/data.cpp", "daal4py/onedal/svm/svm_py.cpp"],
                                 # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
                                 # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
                                 include_dirs=include_dirs + DPCTL_INCDIRS,
                                 extra_compile_args=eca + DPCPP_CFLAGS + ['-DONEDAL_DATA_PARALLEL'],
-                                extra_link_args=ela,
-                                libraries=onedal_libraries + DPCPP_LIBDIRS + DPCTL_LIBS,
-                                library_dirs=ONEDAL_LIBDIRS + DPCTL_LIBDIRS,
+                                extra_link_args=eca2 + ['-fsycl', '-fPIC'],
+                                libraries=onedal_dpc_libraries + DPCPP_LIBS + DPCTL_LIBS,
+                                library_dirs=ONEDAL_LIBDIRS + DPCPP_LIBDIRS + DPCTL_LIBDIRS,
                                 language='c++')
     ]))
 

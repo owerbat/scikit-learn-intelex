@@ -2,6 +2,25 @@ from sklearn.base import ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array
 import numpy as np
 
+# 2 optional
+# try:
+#     import dpctl
+#     print('DPCTL: _onedal4py_dpc')
+#     from _onedal4py_dpc import PyClassificationSvm
+#     # from _onedal4py_host cimport *
+# except ImportError:
+#     print('HOST: _onedal4py_host')
+#     from _onedal4py_host import PyClassificationSvm
+
+# 3 optional
+
+# win and linux only for python37
+# from _onedal4py_dpc import PyClassificationSvm
+
+# mac and other python
+# from _onedal4py_host import PyClassificationSvm
+
+
 class SVC(ClassifierMixin):
     def __init__(self, C=1.0, kernel='rbf', gamma=1.0,
                  coef0=0.0, tol=1e-3, cache_size=200.0, max_iter=-1,
@@ -20,15 +39,21 @@ class SVC(ClassifierMixin):
     def fit(self, X, y, sample_weight=None):
         print(X, y)
 
-        try:
-            import dpctl
-            print('DPCTL: _onedal4py_dpc')
+
+        # 1 optional
+
+        # from _onedal4py_dpc import PyClassificationSvm
+        # from _onedal4py_host import PyClassificationSvm
+
+        if 'dpctl' in sys.modules:
+            from dpctl import is_in_device_context
+            if is_in_device_context():
+                from _onedal4py_dpc import PyClassificationSvm
+            else:
+                from _onedal4py_host import PyClassificationSvm
+        else:
             from _onedal4py_host import PyClassificationSvm
-            # from _onedal4py_host cimport *
-        except ImportError:
             print('HOST: _onedal4py_host')
-            from _onedal4py_host import PyClassificationSvm
-            # from _onedal4py_host cimport *
 
         X, y = check_X_y(X, y, dtype=[np.float64, np.float32], force_all_finite=False)
 
@@ -50,7 +75,19 @@ class SVC(ClassifierMixin):
         print('Infer: start')
         self._c_svm.infer(X)
         print('Infer: finish')
-        print("get_decision_function: ", self._c_svm.get_decision_function())
         print("get_labels: ", self._c_svm.get_labels())
         # print(self._c_svm.get_labels())
         return self._c_svm.get_labels()
+
+
+    def decision_function(self, X):
+        print('SVC PREDICT')
+        # X = check_array(X, dtype=[np.float64, np.float32], force_all_finite=False)
+        print('Infer: start')
+        self._c_svm.infer(X)
+        print('Infer: finish')
+        print("get_decision_function: ", self._c_svm.get_decision_function())
+        print("get_labels: ", self._c_svm.get_labels())
+        # print(self._c_svm.get_labels())
+        return self._c_svm.get_decision_function()
+

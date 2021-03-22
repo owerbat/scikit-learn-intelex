@@ -16,6 +16,8 @@
 
 #pragma once
 
+#define NO_IMPORT_ARRAY
+
 #include "oneapi/dal/algo/svm.hpp"
 #include "data/data.h"
 

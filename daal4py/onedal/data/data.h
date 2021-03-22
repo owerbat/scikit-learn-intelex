@@ -89,5 +89,3 @@ oneapi::dal::table _input_to_onedal_table(PyObject * nda);
 PyObject * _table_to_numpy(const oneapi::dal::table & input);
 
 } // namespace oneapi::dal::python
-
-#endif // _ONEDAL4PY_DATA_H_

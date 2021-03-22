@@ -1,7 +1,7 @@
 
 from libcpp.string cimport string
 
-cdef extern from "data_management/utils.h":
+cdef extern from "data/utils.h":
     cdef string to_std_string(PyObject * o) except +
 
 

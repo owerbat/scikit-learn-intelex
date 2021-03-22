@@ -14,6 +14,16 @@
 # limitations under the License.
 #===============================================================================
 
-from .svm import SVC
+# daal4py SVM classification example for shared memory systems
 
-__all__ = ['SVC']
+from daal4py.onedal.prims import linear_kernel
+import numpy as np
+
+def main():
+    X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]], dtype=np.float32)
+    Y = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]], dtype=np.float32)
+    print("Result of linear kernel x and y:", linear_kernel(X, Y))
+    pass
+
+if __name__ == "__main__":
+    main()

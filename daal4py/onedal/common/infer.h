@@ -16,15 +16,33 @@
 
 #pragma once
 
-#define NO_IMPORT_ARRAY
-
-#ifdef _WIN32
-    #define NOMINMAX
-#endif
-#include <string>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
 
-static std::string to_std_string(PyObject * o)
+#ifdef _DPCPP_
+    #include "dpctl_sycl_types.h"
+    #include "dpctl_sycl_queue_manager.h"
+#endif
+
+namespace oneapi::dal::python
 {
-    return PyUnicode_AsUTF8(o);
+template <typename... Args>
+auto infer(Args &&... args)
+{
+#ifdef _DPCPP_
+    auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
+    if (dpctl_queue != NULL)
+    {
+        cl::sycl::queue & sycl_queue = *reinterpret_cast<cl::sycl::queue *>(dpctl_queue);
+        return dal::infer(sycl_queue, std::forward<Args>(args)...);
+    }
+    else
+    {
+        throw std::runtime_error("Cannot set daal context: Pointer to queue object is NULL");
+    }
+#else
+    return dal::infer(std::forward<Args>(args)...);
+#endif
 }
+
+} // namespace oneapi::dal::python

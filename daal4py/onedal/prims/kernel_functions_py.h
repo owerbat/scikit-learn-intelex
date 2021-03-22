@@ -16,56 +16,88 @@
 
 #pragma once
 
+#define NO_IMPORT_ARRAY
+
 #include "oneapi/dal/algo/linear_kernel.hpp"
 #include "oneapi/dal/algo/rbf_kernel.hpp"
 #include "oneapi/dal/algo/polynomial_kernel.hpp"
-#include "data_management/data.h"
+#include "data/data.h"
 
 namespace oneapi::dal::python
 {
-struct compute_linear_kernel_function_params
+struct linear_kernel_params
 {
-    std::string kernel;
-    std::string method;
-    double c;
-    double accuracy_threshold;
-    int max_iteration_count;
-    double cache_size;
-    bool shrinking;
-    double shift;
     double scale;
-    int degree;
-    double sigma;
+    double shift;
 };
 
-// clas <task>_<algorithm>
-class compute_linear_kernel_function_train
+// clas <algorithm>_<act>
+class linear_kernel_compute
 {
 public:
     // from descriptor
-    compute_linear_kernel_function_train(compute_linear_kernel_function_params * params);
+    linear_kernel_compute(linear_kernel_params * params);
 
-    // attributes from train_input
-    void train(PyObject * data, PyObject * labels, PyObject * weights);
+    // attributes from compute_input
+    void compute(PyObject * x, PyObject * y);
 
-    // attributes from train_result
-    int get_support_vector_count();
-
-    // attributes from train_result
-    PyObject * get_support_vectors();
-
-    // attributes from train_result
-    PyObject * get_support_indices();
-
-    // attributes from train_result
-    PyObject * get_coeffs();
-
-    // attributes from train_result
-    PyObject * get_biases();
+    // attributes from compute_result
+    PyObject * get_values();
 
 private:
-    compute_linear_kernel_function_params params_;
-    svm::train_result<svm::task::classification> train_result_;
+    linear_kernel_params params_;
+    linear_kernel::compute_result<> compute_result_;
+
+private:
+    static const auto get_descriptor(linear_kernel_params & params, data_type data_type_input);
+};
+
+struct rbf_kernel_params
+{
+    double sigma;
+};
+
+// clas <algorithm>_<act>
+class rbf_kernel_compute
+{
+public:
+    // from descriptor
+    rbf_kernel_compute(rbf_kernel_params * params);
+
+    // attributes from compute_input
+    void compute(PyObject * x, PyObject * y);
+
+    // attributes from compute_result
+    PyObject * get_values();
+
+private:
+    rbf_kernel_params params_;
+    rbf_kernel::compute_result<> compute_result_;
+};
+
+struct polynomial_kernel_params
+{
+    double scale;
+    double shift;
+    double degree;
+};
+
+// clas <algorithm>_<act>
+class polynomial_kernel_compute
+{
+public:
+    // from descriptor
+    polynomial_kernel_compute(rbf_kernel_params * params);
+
+    // attributes from compute_input
+    void compute(PyObject * x, PyObject * y);
+
+    // attributes from compute_result
+    PyObject * get_values();
+
+private:
+    polynomial_kernel_params params_;
+    polynomial_kernel::compute_result<> compute_result_;
 };
 
 } // namespace oneapi::dal::python

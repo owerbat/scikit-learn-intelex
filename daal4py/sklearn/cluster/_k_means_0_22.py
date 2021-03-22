@@ -38,26 +38,6 @@ from .._utils import getFPType, get_patch_message, daal_check_version
 import logging
 
 
-def _daal_mean_var(X):
-    fpt = getFPType(X)
-    try:
-        alg = daal4py.low_order_moments(
-            fptype=fpt,
-            method='defaultDense',
-            estimatesToCompute='estimatesAll')
-    except AttributeError:
-        return np.var(X, axis=0).mean()
-    ssc = alg.compute(X).sumSquaresCentered
-    ssc = ssc.reshape((-1, 1))
-    alg = daal4py.low_order_moments(
-        fptype=fpt,
-        method='defaultDense',
-        estimatesToCompute='estimatesAll')
-    ssc_total_res = alg.compute(ssc)
-    mean_var = ssc_total_res.sum / X.size
-    return mean_var[0, 0]
-
-
 def _tolerance(X, rtol):
     """Compute absolute tolerance from the relative tolerance"""
     if rtol == 0.0:
@@ -66,7 +46,7 @@ def _tolerance(X, rtol):
         variances = mean_variance_axis(X, axis=0)[1]
         mean_var = np.mean(variances)
     else:
-        mean_var = _daal_mean_var(X)
+        mean_var = np.var(X, axis=0).mean()
     return mean_var * rtol
 
 
@@ -273,6 +253,7 @@ def _fit(self, X, y=None, sample_weight=None):
             "sklearn.cluster.KMeans."
             "fit: " + get_patch_message("daal"))
         X = check_array(X, dtype=[np.float64, np.float32])
+        self.n_features_in_ = X.shape[1]
         self.cluster_centers_, self.labels_, self.inertia_, self.n_iter_ = \
             _daal4py_k_means_fit(
                 X, self.n_clusters, self.max_iter, self.tol, self.init, self.n_init,

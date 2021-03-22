@@ -15,8 +15,8 @@
 
 #include "daal.h"
 
-using namespace oneapi;
-
+namespace oneapi::dal::python
+{
 #define is_array(a)           ((a) && PyArray_Check(a))
 #define array_type(a)         PyArray_TYPE((PyArrayObject *)a)
 #define array_is_behaved(a)   (PyArray_ISCARRAY_RO((PyArrayObject *)a) && array_type(a) < NPY_OBJECT)
@@ -31,16 +31,14 @@ class NumpyDeleter
 public:
     NumpyDeleter(PyArrayObject * a) : _ndarray(a) {}
 
-    NumpyDeleter(const NumpyDeleter & o) : _ndarray(o._ndarray) {}
-
     void operator()(const void * ptr)
     {
         // We need to protect calls to python API
         // Note: at termination time, even when no threads are running, this breaks without the protection
-        PyGILState_STATE gstate = PyGILState_Ensure();
-        assert((void *)array_data(_ndarray) == ptr);
-        Py_DECREF(_ndarray);
-        PyGILState_Release(gstate);
+        // PyGILState_STATE gstate = PyGILState_Ensure();
+        // assert((void *)array_data(_ndarray) == ptr);
+        // // Py_DECREF(_ndarray);
+        // PyGILState_Release(gstate);
     }
     // We don't want this to be copied
     NumpyDeleter & operator=(const NumpyDeleter &) = delete;
@@ -50,14 +48,15 @@ private:
 };
 
 template <typename T, typename ConstDeleter>
-inline dal::homogen_table create_homogen_table(const T * data_pointer, const std::size_t row_count, const std::size_t column_count, ConstDeleter && data_deleter)
+inline dal::homogen_table create_homogen_table(const T * data_pointer, const std::size_t row_count, const std::size_t column_count,
+                                               ConstDeleter && data_deleter)
 {
 #ifdef _DPCPP_
     auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
     if (dpctl_queue != NULL)
     {
         cl::sycl::queue & sycl_queue = *reinterpret_cast<cl::sycl::queue *>(dpctl_queue);
-        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter);
+        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, dal::data_layout::row_major);
     }
     else
     {
@@ -65,16 +64,14 @@ inline dal::homogen_table create_homogen_table(const T * data_pointer, const std
     }
 #else
 
-    return dal::homogen_table(data_pointer, row_count, column_count, data_deleter);
+    return dal::homogen_table(data_pointer, row_count, column_count, data_deleter, dal::data_layout::row_major);
 #endif
 }
 
 template <typename T>
-inline dal::homogen_table _make_ht(PyObject * nda)
+inline dal::homogen_table _make_ht(PyArrayObject * array)
 {
-    PyArrayObject * array = reinterpret_cast<PyArrayObject *>(nda);
-    assert(is_array(nda) && array_is_behaved(array));
-
+    assert(array_is_behaved(array));
     if (array_numdims(array) == 2)
     {
         printf("[CPP]: _make_ht: array_numdims(array) == 2\n");
@@ -84,9 +81,8 @@ inline dal::homogen_table _make_ht(PyObject * nda)
         auto res_table            = create_homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
         // we need it increment the ref-count if we use the input array in-place
         // if we copied/converted it we already own our own reference
-        if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
+        if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
         printf("[CPP]: _make_ht: finish\n");
-
         return res_table;
     }
     else if (array_numdims(array) == 1)
@@ -96,11 +92,7 @@ inline dal::homogen_table _make_ht(PyObject * nda)
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = 1;
         auto res_table            = create_homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
-        // we need it increment the ref-count if we use the input array in-place
-        // if we copied/converted it we already own our own reference
-        if (reinterpret_cast<PyObject *>(data_pointer) == nda) Py_INCREF(array);
-        printf("[CPP]: _make_ht: finish\n");
-
+        if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
         return res_table;
     }
     else
@@ -119,7 +111,7 @@ dal::table _input_to_onedal_table(PyObject * obj)
     }
     if (obj == nullptr || obj == Py_None)
     {
-        throw std::invalid_argument("obj is nullptr");
+        return res;
     }
     if (is_array(obj))
     { // we got a numpy array
@@ -132,17 +124,13 @@ dal::table _input_to_onedal_table(PyObject * obj)
             case NPY_DOUBLE:
             case NPY_CDOUBLE:
             case NPY_DOUBLELTR:
-            case NPY_CDOUBLELTR: res = _make_ht<double>(obj); break;
+            case NPY_CDOUBLELTR: res = _make_ht<double>(ary); break;
             case NPY_FLOAT:
             case NPY_CFLOAT:
             case NPY_FLOATLTR:
-            case NPY_CFLOATLTR: res = _make_ht<float>(obj); break;
+            case NPY_CFLOATLTR: res = _make_ht<float>(ary); break;
             default: throw std::invalid_argument("Not avalible type in input_to_onedal_table.");
             }
-
-            // #define MAKENT_(_T) res = _make_ht<_T>(obj)
-            //             SET_NPY_FEATURE(PyArray_DESCR(ary)->type, MAKENT_, throw std::invalid_argument("Found unsupported array type"));
-            // #undef MAKENT_
             printf("[CPP]: _input_to_onedal_table: finish\n");
         }
         // throw std::invalid_argument("Could not convert Python object to onedal table.");
@@ -244,3 +232,5 @@ PyObject * _table_to_numpy(const dal::table & input)
     }
     return nullptr;
 }
+
+} // namespace oneapi::dal::python

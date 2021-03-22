@@ -56,6 +56,9 @@ def method_processing(X, clf, methods):
         elif i == 'predict_proba':
             res.append(clf.predict_proba(X))
             name.append(get_class_name(clf) + '.predict_proba(X)')
+        elif i == 'decision_function':
+            res.append(clf.decision_function(X))
+            name.append(get_class_name(clf) + '.decision_function(X)')
         elif i == 'kneighbors':
             dist, idx = clf.kneighbors(X)
             res.append(dist)
@@ -193,23 +196,23 @@ MODELS_INFO = [
         'dataset': 'blobs',
     },
     {
-        'model': SVC(random_state=0, probability=True, kernel='linear'),
-        'methods': ['predict', 'predict_proba'],
+        'model': SVC(kernel='linear'),
+        'methods': ['predict', 'decision_function'],
         'dataset': 'classifier',
     },
     {
-        'model': SVC(random_state=0, probability=True, kernel='rbf'),
-        'methods': ['predict', 'predict_proba'],
+        'model': SVC(kernel='rbf'),
+        'methods': ['predict', 'decision_function'],
         'dataset': 'classifier',
     },
     {
-        'model': SVC(random_state=0, probability=True, kernel='linear'),
-        'methods': ['predict', 'predict_proba'],
+        'model': SVC(kernel='linear'),
+        'methods': ['predict', 'decision_function'],
         'dataset': 'sparse',
     },
     {
-        'model': SVC(random_state=0, probability=True, kernel='rbf'),
-        'methods': ['predict', 'predict_proba'],
+        'model': SVC(kernel='rbf'),
+        'methods': ['predict', 'decision_function'],
         'dataset': 'sparse',
     },
     {
@@ -302,7 +305,9 @@ TO_SKIP = [
     'KNeighborsClassifier',  # problem with indeces in algorithm='brute'
     'NearestNeighbors',  # problem with indeces in algorithm='brute'
     'TSNE',  # Absolute diff is 1e-10, potential problem in KNN,
-             # will be fixed for next release
+             # will be fixed for next release. (UPD. KNN is fixed but there is a problem
+             # with stability of stock sklearn. It is already stable in master, so, we
+             # need to wait for the next sklearn release)
     'KMeans',  # Absolute diff is 1e-8
     'ElasticNet',  # Absolute diff is 1e-13
     'Lasso',  # Absolute diff is 1e-13
@@ -318,12 +323,15 @@ TO_SKIP = [
 
 @pytest.mark.parametrize('model_head', MODELS_INFO)
 def test_models(model_head):
-    if (get_class_name(model_head['model']) == 'RandomForestClassifier') \
+    stable_algos = ['RandomForestClassifier', 'RandomForestRegressor',
+                    'PCA', 'LinearRegression', 'Ridge', 'KNeighborsClassifier',
+                    'NearestNeighbors', 'KMeans', 'ElasticNet', 'Lasso']
+    if get_class_name(model_head['model']) in stable_algos \
             and daal_check_version((2021, 'P', 200)):
-        TO_SKIP.remove('RandomForestClassifier')
-    if (get_class_name(model_head['model']) == 'RandomForestRegressor') \
-            and daal_check_version((2021, 'P', 200)):
-        TO_SKIP.remove('RandomForestRegressor')
+        try:
+            TO_SKIP.remove(get_class_name(model_head['model']))
+        except ValueError:
+            pass
     if get_class_name(model_head['model']) in TO_SKIP:
         pytest.skip("Unstable", allow_module_level=False)
     _run_test(model_head['model'], model_head['methods'], model_head['dataset'])
@@ -337,7 +345,7 @@ def test_train_test_split(features):
     baseline_X_train, baseline_X_test, baseline_y_train, baseline_y_test = \
         train_test_split(X, y, test_size=0.33, random_state=0)
     baseline = [baseline_X_train, baseline_X_test, baseline_y_train, baseline_y_test]
-    for i in range(10):
+    for _ in range(10):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33,
                                                             random_state=0)
         res = [X_train, X_test, y_train, y_test]
@@ -351,7 +359,7 @@ def test_pairwise_distances(metric):
     X = np.random.rand(1000)
     X = np.array(X, dtype=np.float64)
     baseline = pairwise_distances(X.reshape(1, -1), metric=metric)
-    for i in range(5):
+    for _ in range(5):
         res = pairwise_distances(X.reshape(1, -1), metric=metric)
         for a, b in zip(res, baseline):
             np.testing.assert_allclose(a, b, rtol=0.0, atol=0.0,
@@ -363,7 +371,7 @@ def test_roc_auc(array_size):
     a = [random.randint(0, 1) for i in range(array_size)]
     b = [random.randint(0, 1) for i in range(array_size)]
     baseline = roc_auc_score(a, b)
-    for i in range(5):
+    for _ in range(5):
         res = roc_auc_score(a, b)
         np.testing.assert_allclose(baseline, res, rtol=0.0, atol=0.0,
                                    err_msg=str("roc_auc is incorrect"))

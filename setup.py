@@ -18,13 +18,19 @@
 # System imports
 import os
 import sys
+import sysconfig
 import time
+import subprocess
 from setuptools import setup, Extension
+import setuptools.command.install as orig_install
+import setuptools.command.develop as orig_develop
+import distutils.command.build as orig_build
 from os.path import join as jp
 from distutils.sysconfig import get_config_vars
 from Cython.Build import cythonize
 import glob
 import numpy as np
+import distutils.ccompiler
 
 try:
     from ctypes.utils import find_library
@@ -49,6 +55,13 @@ elif sys.platform == 'darwin':
 elif sys.platform in ['win32', 'cygwin']:
     IS_WIN = True
     lib_dir = jp(dal_root, 'lib', 'intel64')
+    if sys.platform == "win32":
+        # noinspection PyUnresolvedReferences
+        import dpcppcompiler
+        sys.modules["distutils.dpcppcompiler"] = sys.modules["dpcppcompiler"]
+        distutils.ccompiler.compiler_class["clang-cl"] = (
+            "dpcppcompiler", "DPCPPCompiler", "Support of DPCPP compiler"
+        )
 else:
     assert False, sys.platform + ' not supported'
 
@@ -97,13 +110,13 @@ def get_lib_suffix():
 
     ld_lib_path_suffix = walk_ld_library_path()
     lib_dir_suffix = walk_libdir()
-    if any([find_library('onedal_core') is not None,
-            ld_lib_path_suffix == 'onedal',
-            lib_dir_suffix == 'onedal']):
+    if find_library('onedal_core') is not None or \
+       ld_lib_path_suffix == 'onedal' or \
+            lib_dir_suffix == 'onedal':
         return 'onedal'
-    if any([find_library('daal_core') is not None,
-            ld_lib_path_suffix == 'daal',
-            lib_dir_suffix == 'daal']):
+    if find_library('daal_core') is not None or \
+       ld_lib_path_suffix == 'daal' or \
+            lib_dir_suffix == 'daal':
         return 'daal'
 
     raise ImportError('Unable to import oneDAL or oneDAL lib')
@@ -126,9 +139,6 @@ d4p_version = (os.environ['DAAL4PY_VERSION'] if 'DAAL4PY_VERSION' in os.environ
 
 trues = ['true', 'True', 'TRUE', '1', 't', 'T', 'y', 'Y', 'Yes', 'yes', 'YES']
 no_dist = True if 'NO_DIST' in os.environ and os.environ['NO_DIST'] in trues else False
-if not no_dist and sys.version_info <= (3, 6):
-    print('distributed mode not supported for python version < 3.6\n')
-    no_dist = True
 no_stream = 'NO_STREAM' in os.environ and os.environ['NO_STREAM'] in trues
 mpi_root = None if no_dist else os.environ['MPIROOT']
 dpcpp = True if 'DPCPPROOT' in os.environ else False
@@ -136,22 +146,6 @@ dpcpp_root = None if not dpcpp else os.environ['DPCPPROOT']
 dpctl = True if dpcpp and 'DPCTLROOT' in os.environ else False
 dpctl_root = None if not dpctl else os.environ['DPCTLROOT']
 
-#itac_root = os.environ['VT_ROOT']
-IS_WIN = False
-IS_MAC = False
-IS_LIN = False
-
-if 'linux' in sys.platform:
-    IS_LIN = True
-    lib_dir = jp(dal_root, 'lib', 'intel64')
-elif sys.platform == 'darwin':
-    IS_MAC = True
-    lib_dir = jp(dal_root, 'lib')
-elif sys.platform in ['win32', 'cygwin']:
-    IS_WIN = True
-    lib_dir = jp(dal_root, 'lib', 'intel64')
-else:
-    assert False, sys.platform + ' not supported'
 
 daal_lib_dir = lib_dir if (IS_MAC or os.path.isdir(lib_dir)) else os.path.dirname(lib_dir)
 ONEDAL_LIBDIRS = [daal_lib_dir]
@@ -254,8 +248,8 @@ def get_type_defines():
     return ["-D{}={}".format(d, DAAL_DEFAULT_TYPE) for d in daal_type_defines]
 
 
-def getpyexts():
-    include_dir_plat = [os.path.abspath('./src'), dal_root + '/include', ]
+def get_build_options():
+    include_dir_plat = [os.path.abspath('./src'), os.path.abspath('./daal4py/onedal'), dal_root + '/include', ]
     # FIXME it is a wrong place for this dependency
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
@@ -287,20 +281,27 @@ def getpyexts():
     if IS_MAC:
         ela.append('-stdlib=libc++')
         ela.append("-Wl,-rpath,{}".format(daal_lib_dir))
+        ela.append("-Wl,-rpath,@loader_path/../..")
     elif IS_WIN:
         ela.append('-IGNORE:4197')
     elif IS_LIN and not any(x in os.environ and '-g' in os.environ[x]
                             for x in ['CPPFLAGS', 'CFLAGS', 'LDFLAGS']):
         ela.append('-s')
+    if IS_LIN:
+        ela.append("-fPIC")
+        ela.append("-Wl,-rpath,$ORIGIN/../..")
+    return eca, ela, include_dir_plat, libraries_plat
 
     import glob
-
 
     include_dirs = [
         'daal4py/onedal4py',
         dal_root + '/include',
         np.get_include(),
     ]
+
+def getpyexts():
+    eca, ela, include_dir_plat, libraries_plat = get_build_options()
 
     onedal_libraries = libraries_plat.copy()
     onedal_dpc_libraries = libraries_plat.copy()
@@ -313,10 +314,37 @@ def getpyexts():
     eca2 = [ '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     print(' >>>>  START BUILD!')
 
+    import distutils.dir_util
+    from distutils.file_util import copy_file
+
+    # copy_tree('daal4py/onedal', 'build/daal4py/onedal')
+
+    cpp_files=glob.glob("daal4py/onedal/**/*.cpp")
+    pyx_files=glob.glob("daal4py/onedal/**/*.pyx")
+    pxi_files=glob.glob("daal4py/onedal/**/*.pxi")
+
+    distutils.dir_util.create_tree('build', pyx_files)
+    print('cpp_files:', cpp_files)
+    print('pyx_files:', pyx_files)
+    for f in pyx_files:
+        copy_file(f, jp('build', f + '_host.pyx'))
+        copy_file(f, jp('build', f + '_dpc.pyx'))
+
+    for f in pxi_files:
+        copy_file(f, jp('build', f))
+
+    pyx_host_files=glob.glob("build/daal4py/onedal/**/*_host.pyx")
+    pyx_dpc_files=glob.glob("build/daal4py/onedal/**/*_dpc.pyx")
+
+    print(pyx_host_files)
+    print(pyx_dpc_files)
+
+    print(pyx_host_files + cpp_files)
+
     exts = []
     exts.extend(cythonize([Extension('_onedal4py_host',
-                                ["daal4py/onedal/**/*_host.pyx", "daal4py/onedal/data_management/data.cpp", "daal4py/onedal/svm/svm_py.cpp"],
-                                include_dirs=include_dirs,
+                                sources=pyx_host_files + cpp_files,
+                                include_dirs=include_dir_plat,
                                 extra_compile_args=eca,
                                 extra_link_args=ela,
                                 libraries=onedal_libraries,
@@ -326,18 +354,18 @@ def getpyexts():
     print('>>> DPCPP part')
     print('> DPCTL_LIBS: ', DPCTL_LIBS)
     print('> DPCTL_INCDIRS: ', DPCTL_INCDIRS)
-    exts.extend(cythonize([Extension('_onedal4py_dpc',
-                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/data_management/data.cpp"],
-                                ["daal4py/onedal/**/*_dpc.pyx", "daal4py/onedal/data_management/data.cpp", "daal4py/onedal/svm/svm_py.cpp"],
-                                # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
-                                # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-                                include_dirs=include_dirs + DPCTL_INCDIRS,
-                                extra_compile_args=eca + DPCPP_CFLAGS + ['-DONEDAL_DATA_PARALLEL'],
-                                extra_link_args=eca2 + ['-fsycl', '-fPIC'],
-                                libraries=onedal_dpc_libraries + DPCPP_LIBS + DPCTL_LIBS,
-                                library_dirs=ONEDAL_LIBDIRS + DPCPP_LIBDIRS + DPCTL_LIBDIRS,
-                                language='c++')
-    ]))
+    # exts.extend(cythonize([Extension('_onedal4py_dpc',
+    #                             sources=pyx_dpc_files + cpp_files,
+    #                             # sources=["daal4py/onedal4py/**/*.pyx", "daal4py/onedal4py/**/*.cpp"],
+    #                             # depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+    #                             include_dirs=include_dir_plat + DPCTL_INCDIRS,
+    #                             extra_compile_args=eca + DPCPP_CFLAGS,
+    #                             define_macros=[('ONEDAL_DATA_PARALLEL', None)],
+    #                             extra_link_args=eca2 + ['-fsycl', '-fPIC'],
+    #                             libraries=onedal_dpc_libraries + DPCPP_LIBS + DPCTL_LIBS,
+    #                             library_dirs=ONEDAL_LIBDIRS + DPCPP_LIBDIRS + DPCTL_LIBDIRS,
+    #                             language='c++')
+    # ]))
 
     # ]))
     # exts = cythonize([Extension('_daal4py',
@@ -424,6 +452,96 @@ project_urls = {
     'Documentation': 'https://intelpython.github.io/daal4py/',
     'Source Code': 'https://github.com/IntelPython/daal4py'
 }
+
+with open('README.md', 'r', encoding='utf8') as f:
+    long_description = f.read()
+
+install_requires = []
+with open('requirements.txt') as f:
+    install_requires.extend(f.read().splitlines())
+    if IS_MAC:
+        for r in install_requires:
+            if "dpcpp_cpp_rt" in r:
+                install_requires.remove(r)
+                break
+
+
+def distutils_dir_name(dname):
+    """Returns the name of a distutils build directory"""
+    f = "{dirname}.{platform}-{version[0]}.{version[1]}"
+    return f.format(dirname=dname,
+                    platform=sysconfig.get_platform(),
+                    version=sys.version_info)
+
+
+def build_oneapi_backend():
+    import shutil
+
+    eca, ela, include_dir_plat, libraries_plat = get_build_options()
+    libraries = libraries_plat + ['OpenCL', 'onedal_sycl']
+    include_dir_plat = ['-I' + incdir for incdir in include_dir_plat]
+    library_dir_plat = ['-L' + libdir for libdir in DAAL_LIBDIRS]
+    if IS_WIN:
+        eca += ['/EHsc']
+        ela += ['/MD']
+        lib_prefix = ''
+        lib_suffix = '.lib'
+        libname = 'oneapi_backend.dll'
+        additional_linker_opts = ['/link', '/DLL', f'/OUT:{libname}']
+    else:
+        eca += ['-fPIC']
+        ela += ['-shared']
+        lib_suffix = ''
+        lib_prefix = '-l'
+        libname = 'liboneapi_backend.so'
+        additional_linker_opts = ['-o', libname]
+    libraries = [f'{lib_prefix}{str(item)}{lib_suffix}' for item in libraries]
+
+    d4p_dir = os.getcwd()
+    src_dir = os.path.join(d4p_dir, "src/oneapi")
+    build_dir = os.path.join(d4p_dir, "build_backend")
+
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir)
+    os.mkdir(build_dir)
+    os.chdir(build_dir)
+
+    cmd = ['dpcpp'] + \
+        include_dir_plat + eca + \
+        library_dir_plat + ela + \
+        [f'{src_dir}/oneapi_backend.cpp'] + \
+        libraries + additional_linker_opts
+
+    print(subprocess.list2cmdline(cmd))
+    subprocess.check_call(cmd)
+
+    shutil.copy(libname, os.path.join(d4p_dir, "daal4py/oneapi"))
+    if IS_WIN:
+        shutil.copy(libname.replace('.dll', '.lib'),
+                    os.path.join(d4p_dir, "daal4py/oneapi"))
+    os.chdir(d4p_dir)
+
+
+class install(orig_install.install):
+    def run(self):
+        if dpcpp:
+            build_oneapi_backend()
+        return super().run()
+
+
+class develop(orig_develop.develop):
+    def run(self):
+        if dpcpp:
+            build_oneapi_backend()
+        return super().run()
+
+
+class build(orig_build.build):
+    def run(self):
+        if dpcpp:
+            build_oneapi_backend()
+        return super().run()
+
 
 # daal setup
 setup(  name             = "daal4py",

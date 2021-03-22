@@ -231,10 +231,11 @@ class DBSCAN(DBSCAN_original):
         if sample_weight is not None:
             sample_weight = _check_sample_weight(sample_weight, X)
 
-        _daal_ready = all([(self.algorithm in ['auto', 'brute']),
-                           any([self.metric == 'euclidean',
-                               (self.metric == 'minkowski' and self.p == 2)]),
-                           isinstance(X, np.ndarray)])
+        _daal_ready = self.algorithm in [
+            'auto', 'brute'] and (
+            self.metric == 'euclidean' or (
+                self.metric == 'minkowski' and self.p == 2)) and isinstance(
+                X, np.ndarray)
         if _daal_ready:
             logging.info(
                 "sklearn.cluster.DBSCAN."
@@ -246,6 +247,7 @@ class DBSCAN(DBSCAN_original):
             self.core_sample_indices_ = core_ind
             self.labels_ = assignments
             self.components_ = np.take(X, core_ind, axis=0)
+            self.n_features_in_ = X.shape[1]
             return self
         logging.info(
             "sklearn.cluster.DBSCAN."

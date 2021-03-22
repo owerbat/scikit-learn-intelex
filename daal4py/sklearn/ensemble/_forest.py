@@ -21,6 +21,7 @@ import warnings
 
 import daal4py
 from .._utils import (getFPType, get_patch_message)
+from daal4py.sklearn._utils import daal_check_version, sklearn_check_version
 import logging
 
 from sklearn.tree import (DecisionTreeClassifier, DecisionTreeRegressor)
@@ -130,6 +131,20 @@ def _check_parameters(self):
         if self.max_leaf_nodes < 2:
             raise ValueError(("max_leaf_nodes {0} must be either None "
                               "or larger than 1").format(self.max_leaf_nodes))
+    if isinstance(self.maxBins, numbers.Integral):
+        if not 2 <= self.maxBins:
+            raise ValueError("maxBins must be at least 2, got %s"
+                             % self.maxBins)
+    else:
+        raise ValueError("maxBins must be integral number but was "
+                         "%r" % self.maxBins)
+    if isinstance(self.minBinSize, numbers.Integral):
+        if not 1 <= self.minBinSize:
+            raise ValueError("minBinSize must be at least 1, got %s"
+                             % self.minBinSize)
+    else:
+        raise ValueError("minBinSize must be integral number but was "
+                         "%r" % self.minBinSize)
 
 
 def _daal_fit_classifier(self, X, y, sample_weight=None):
@@ -137,6 +152,7 @@ def _daal_fit_classifier(self, X, y, sample_weight=None):
     y, expanded_class_weight = self._validate_y_class_weight(y)
     n_classes_ = self.n_classes_[0]
     self.n_features_ = X.shape[1]
+    self.n_features_in_ = X.shape[1]
 
     if expanded_class_weight is not None:
         if sample_weight is not None:
@@ -171,7 +187,7 @@ def _daal_fit_classifier(self, X, y, sample_weight=None):
     dfc_algorithm = daal4py.decision_forest_classification_training(
         nClasses=int(n_classes_),
         fptype=X_fptype,
-        method='defaultDense',
+        method='hist' if daal_check_version((2021, 'P', 200)) else 'defaultDense',
         nTrees=int(self.n_estimators),
         observationsPerTreeFraction=n_samples_bootstrap_
         if self.bootstrap is True else 1.,
@@ -196,7 +212,9 @@ def _daal_fit_classifier(self, X, y, sample_weight=None):
                                         self.min_samples_split * X.shape[0]))),
         minWeightFractionInLeafNode=self.min_weight_fraction_leaf,
         minImpurityDecreaseInSplitNode=self.min_impurity_decrease,
-        maxLeafNodes=0 if self.max_leaf_nodes is None else self.max_leaf_nodes
+        maxLeafNodes=0 if self.max_leaf_nodes is None else self.max_leaf_nodes,
+        maxBins=self.maxBins,
+        minBinSize=self.minBinSize
     )
     self._cached_estimators_ = None
     # compute
@@ -207,21 +225,27 @@ def _daal_fit_classifier(self, X, y, sample_weight=None):
     self.daal_model_ = model
 
     # compute oob_score_
-    if self.oob_score:
-        self.estimators_ = self._estimators_
-        self._set_oob_score(X, y)
+    #if self.oob_score:
+    #    self.estimators_ = self._estimators_
+    #    self._set_oob_score(X, y)
 
     return self
 
 
 def _daal_predict_classifier(self, X):
-    X = self._validate_X_predict(X)
+    if not daal_check_version((2021, 'P', 200)):
+        X = self._validate_X_predict(X)
     X_fptype = getFPType(X)
     dfc_algorithm = daal4py.decision_forest_classification_prediction(
         nClasses=int(self.n_classes_),
         fptype=X_fptype,
         resultsToEvaluate="computeClassLabels"
     )
+    if X.shape[1] != self.n_features_in_:
+        raise ValueError(
+            (f'X has {X.shape[1]} features, '
+             f'but RandomForestClassifier is expecting '
+             f'{self.n_features_in_} features as input'))
     dfc_predictionResult = dfc_algorithm.compute(X, self.daal_model_)
 
     pred = dfc_predictionResult.prediction
@@ -231,7 +255,8 @@ def _daal_predict_classifier(self, X):
 
 
 def _daal_predict_proba(self, X):
-    X = self._validate_X_predict(X)
+    if not daal_check_version((2021, 'P', 200)):
+        X = self._validate_X_predict(X)
     X_fptype = getFPType(X)
     dfc_algorithm = daal4py.decision_forest_classification_prediction(
         nClasses=int(self.n_classes_),
@@ -255,7 +280,7 @@ def _fit_classifier(self, X, y, sample_weight=None):
         sample_weight = check_sample_weight(sample_weight, X)
 
     daal_ready = self.warm_start is False and self.criterion == "gini" and \
-        self.ccp_alpha == 0.0 and not sp.issparse(X)
+        self.ccp_alpha == 0.0 and not sp.issparse(X) and self.oob_score is False
 
     if daal_ready:
         _supported_dtypes_ = [np.float32, np.float64]
@@ -301,6 +326,7 @@ def _fit_classifier(self, X, y, sample_weight=None):
 
 
 def _daal_fit_regressor(self, X, y, sample_weight=None):
+    self.n_features_in_ = X.shape[1]
     self.n_features_ = X.shape[1]
     rs_ = check_random_state(self.random_state)
 
@@ -326,7 +352,7 @@ def _daal_fit_regressor(self, X, y, sample_weight=None):
     # create algorithm
     dfr_algorithm = daal4py.decision_forest_regression_training(
         fptype=getFPType(X),
-        method='defaultDense',
+        method='hist' if daal_check_version((2021, 'P', 200)) else 'defaultDense',
         nTrees=int(self.n_estimators),
         observationsPerTreeFraction=n_samples_bootstrap if self.bootstrap is True else 1.,
         featuresPerNode=int(_featuresPerNode),
@@ -350,7 +376,9 @@ def _daal_fit_regressor(self, X, y, sample_weight=None):
                                         self.min_samples_split * X.shape[0]))),
         minWeightFractionInLeafNode=self.min_weight_fraction_leaf,
         minImpurityDecreaseInSplitNode=self.min_impurity_decrease,
-        maxLeafNodes=0 if self.max_leaf_nodes is None else self.max_leaf_nodes
+        maxLeafNodes=0 if self.max_leaf_nodes is None else self.max_leaf_nodes,
+        maxBins=self.maxBins,
+        minBinSize=self.minBinSize
     )
 
     self._cached_estimators_ = None
@@ -362,9 +390,9 @@ def _daal_fit_regressor(self, X, y, sample_weight=None):
     self.daal_model_ = model
 
     # compute oob_score_
-    if self.oob_score:
-        self.estimators_ = self._estimators_
-        self._set_oob_score(X, y)
+    #if self.oob_score:
+    #    self.estimators_ = self._estimators_
+    #    self._set_oob_score(X, y)
 
     return self
 
@@ -380,7 +408,7 @@ def _fit_regressor(self, X, y, sample_weight=None):
 
     daal_ready = self.warm_start is False and \
         self.criterion == "mse" and self.ccp_alpha == 0.0 and \
-        not sp.issparse(X)
+        not sp.issparse(X) and self.oob_score is False
 
     if daal_ready:
         _supported_dtypes_ = [np.double, np.single]
@@ -423,7 +451,13 @@ def _fit_regressor(self, X, y, sample_weight=None):
 
 
 def _daal_predict_regressor(self, X):
-    X = self._validate_X_predict(X)
+    if X.shape[1] != self.n_features_in_:
+        raise ValueError(
+            (f'X has {X.shape[1]} features, '
+             f'but RandomForestRegressor is expecting '
+             f'{self.n_features_in_} features as input'))
+    if not daal_check_version((2021, 'P', 200)):
+        X = self._validate_X_predict(X)
     X_fptype = getFPType(X)
     dfr_alg = daal4py.decision_forest_regression_prediction(fptype=X_fptype)
     dfr_predictionResult = dfr_alg.compute(X, self.daal_model_)
@@ -481,28 +515,56 @@ class RandomForestClassifier(RandomForestClassifier_original):
                  warm_start=False,
                  class_weight=None,
                  ccp_alpha=0.0,
-                 max_samples=None):
-        super(RandomForestClassifier, self).__init__(
-            n_estimators=n_estimators,
-            criterion=criterion,
-            max_depth=max_depth,
-            min_samples_split=min_samples_split,
-            min_samples_leaf=min_samples_leaf,
-            min_weight_fraction_leaf=min_weight_fraction_leaf,
-            max_features=max_features,
-            max_leaf_nodes=max_leaf_nodes,
-            min_impurity_decrease=min_impurity_decrease,
-            min_impurity_split=min_impurity_split,
-            bootstrap=bootstrap,
-            oob_score=oob_score,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            verbose=verbose,
-            warm_start=warm_start,
-            class_weight=class_weight,
-            ccp_alpha=ccp_alpha,
-            max_samples=max_samples
-        )
+                 max_samples=None,
+                 maxBins=256,
+                 minBinSize=1):
+        if sklearn_check_version('0.21'):
+            super(RandomForestClassifier, self).__init__(
+                n_estimators=n_estimators,
+                criterion=criterion,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                min_weight_fraction_leaf=min_weight_fraction_leaf,
+                max_features=max_features,
+                max_leaf_nodes=max_leaf_nodes,
+                min_impurity_decrease=min_impurity_decrease,
+                min_impurity_split=min_impurity_split,
+                bootstrap=bootstrap,
+                oob_score=oob_score,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                verbose=verbose,
+                warm_start=warm_start,
+                class_weight=class_weight
+            )
+            self.ccp_alpha = ccp_alpha
+            self.max_samples = max_samples
+        else:
+            super(RandomForestClassifier, self).__init__(
+                n_estimators=n_estimators,
+                criterion=criterion,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                min_weight_fraction_leaf=min_weight_fraction_leaf,
+                max_features=max_features,
+                max_leaf_nodes=max_leaf_nodes,
+                min_impurity_decrease=min_impurity_decrease,
+                min_impurity_split=min_impurity_split,
+                bootstrap=bootstrap,
+                oob_score=oob_score,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                verbose=verbose,
+                warm_start=warm_start,
+                class_weight=class_weight,
+                ccp_alpha=ccp_alpha,
+                max_samples=max_samples
+            )
+
+        self.maxBins = maxBins
+        self.minBinSize = minBinSize
 
     def fit(self, X, y, sample_weight=None):
         """
@@ -595,22 +657,30 @@ class RandomForestClassifier(RandomForestClassifier_original):
         """
         # Temporary solution
         X = check_array(X, accept_sparse=['csr', 'csc', 'coo'])
+        if hasattr(self, 'n_features_in_'):
+            if X.shape[1] != self.n_features_in_:
+                raise ValueError(
+                    (f'X has {X.shape[1]} features, '
+                     f'but RandomForestClassifier is expecting '
+                     f'{self.n_features_in_} features as input'))
         logging.info(
             "sklearn.ensemble.RandomForestClassifier."
             "predict_proba: " + get_patch_message("sklearn"))
         return super(RandomForestClassifier, self).predict_proba(X)
 
-        # if (not hasattr(self, 'daal_model_') or
-        #        sp.issparse(X) or self.n_outputs_ != 1 or
-        #        not (X.dtype == np.float64 or X.dtype == np.float32)):
+        #X = check_array(X, accept_sparse=['csr', 'csc', 'coo'],
+        #                dtype=[np.float64, np.float32])
+        #if not hasattr(self, 'daal_model_') or \
+        #        sp.issparse(X) or self.n_outputs_ != 1 or \
+        #        not daal_check_version((2021, 'P', 200)):
         #    logging.info(
         #        "sklearn.ensemble.RandomForestClassifier."
         #        "predict_proba: " + get_patch_message("sklearn"))
         #    return super(RandomForestClassifier, self).predict_proba(X)
-        # logging.info(
-        #     "sklearn.ensemble.RandomForestClassifier."
-        #     "predict_proba: " + get_patch_message("daal"))
-        # return _daal_predict_proba(self, X)
+        #logging.info(
+        #    "sklearn.ensemble.RandomForestClassifier."
+        #    "predict_proba: " + get_patch_message("daal"))
+        #return _daal_predict_proba(self, X)
 
     @property
     def _estimators_(self):
@@ -700,27 +770,53 @@ class RandomForestRegressor(RandomForestRegressor_original):
                  verbose=0,
                  warm_start=False,
                  ccp_alpha=0.0,
-                 max_samples=None):
-        super(RandomForestRegressor, self).__init__(
-            n_estimators=n_estimators,
-            criterion=criterion,
-            max_depth=max_depth,
-            min_samples_split=min_samples_split,
-            min_samples_leaf=min_samples_leaf,
-            min_weight_fraction_leaf=min_weight_fraction_leaf,
-            max_features=max_features,
-            max_leaf_nodes=max_leaf_nodes,
-            min_impurity_decrease=min_impurity_decrease,
-            min_impurity_split=min_impurity_split,
-            bootstrap=bootstrap,
-            oob_score=oob_score,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            verbose=verbose,
-            warm_start=warm_start,
-            ccp_alpha=ccp_alpha,
-            max_samples=max_samples
-        )
+                 max_samples=None,
+                 maxBins=256,
+                 minBinSize=1):
+        if sklearn_check_version('0.21'):
+            super(RandomForestRegressor, self).__init__(
+                n_estimators=n_estimators,
+                criterion=criterion,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                min_weight_fraction_leaf=min_weight_fraction_leaf,
+                max_features=max_features,
+                max_leaf_nodes=max_leaf_nodes,
+                min_impurity_decrease=min_impurity_decrease,
+                min_impurity_split=min_impurity_split,
+                bootstrap=bootstrap,
+                oob_score=oob_score,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                verbose=verbose,
+                warm_start=warm_start
+            )
+            self.ccp_alpha = ccp_alpha
+            self.max_samples = max_samples
+        else:
+            super(RandomForestRegressor, self).__init__(
+                n_estimators=n_estimators,
+                criterion=criterion,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                min_weight_fraction_leaf=min_weight_fraction_leaf,
+                max_features=max_features,
+                max_leaf_nodes=max_leaf_nodes,
+                min_impurity_decrease=min_impurity_decrease,
+                min_impurity_split=min_impurity_split,
+                bootstrap=bootstrap,
+                oob_score=oob_score,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                verbose=verbose,
+                warm_start=warm_start,
+                ccp_alpha=ccp_alpha,
+                max_samples=max_samples
+            )
+        self.maxBins = maxBins
+        self.minBinSize = minBinSize
 
     def fit(self, X, y, sample_weight=None):
         """

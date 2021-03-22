@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2014-2019 Intel Corporation
+* Copyright 2021 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef _ONEDAL4PY_DATA_H_
-#define _ONEDAL4PY_DATA_H_
+#pragma once
 
 #ifdef _WIN32
     #define NOMINMAX
@@ -26,12 +25,13 @@
 #include <vector>
 #include <limits>
 #include <string>
-#include <unordered_map>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
 
-#define NTYPE PyObject *
+#include "oneapi/dal/table/common.hpp"
 
+namespace oneapi::dal::python
+{
 #if PY_VERSION_HEX < 0x03000000
     #define PyUnicode_Check(_x)      PyString_Check(_x)
     #define PyUnicode_AsUTF8(_x)     PyString_AsString(_x)
@@ -84,28 +84,10 @@
     default: throw std::invalid_argument(std::string("Unsupported NPY type ") + std::to_string(_T) + " ignored\n."); _E; \
     };
 
-#include "oneapi/dal/table/common.hpp"
-
 oneapi::dal::table _input_to_onedal_table(PyObject * nda);
 
 PyObject * _table_to_numpy(const oneapi::dal::table & input);
 
-class ThreadAllow
-{
-    PyThreadState * _save;
-
-public:
-    ThreadAllow() { allow(); }
-    ~ThreadAllow() { disallow(); }
-    void allow() { _save = PyEval_SaveThread(); }
-    void disallow()
-    {
-        if (_save)
-        {
-            PyEval_RestoreThread(_save);
-            _save = NULL;
-        }
-    }
-};
+} // namespace oneapi::dal::python
 
 #endif // _ONEDAL4PY_DATA_H_

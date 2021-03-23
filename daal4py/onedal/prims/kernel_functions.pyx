@@ -5,14 +5,9 @@
 # Import the Python-level symbols of numpy
 
 # Import the C-level symbols of numpy
-cimport numpy as npc
-
 
 from cpython.ref cimport PyObject
 from libcpp cimport bool
-
-# npc.import_array()
-
 
 include "kernel_functions.pxi"
 

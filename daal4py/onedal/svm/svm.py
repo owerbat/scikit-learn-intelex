@@ -1,6 +1,8 @@
 from sklearn.base import ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array
 import numpy as np
+from importlib import import_module
+from daal4py.onedal.common import _execute_with_dpc_or_host
 
 # 2 optional
 # try:
@@ -35,28 +37,11 @@ class SVC(ClassifierMixin):
         self.class_weight = class_weight
         self.algorithm = algorithm
 
-
+    @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PyClassificationSvmParams")
     def fit(self, X, y, sample_weight=None):
-        print(X, y)
-
-
-        # 1 optional
-
-        # from _onedal4py_dpc import PyClassificationSvm
-        # from _onedal4py_host import PyClassificationSvm
-
-        from _onedal4py_host import PyClassificationSvmTrain, PyClassificationSvmParams
-
-        # import sys
-        # if 'dpctl' in sys.modules:
-        #     from dpctl import is_in_device_context
-        #     if is_in_device_context():
-        #         from _onedal4py_dpc import PyClassificationSvm
-        #     else:
-        #         from _onedal4py_host import PyClassificationSvm
-        # else:
-        #     from _onedal4py_host import PyClassificationSvm
-        #     print('HOST: _onedal4py_host')
+        # todo
+        PyClassificationSvmTrain = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmTrain')
+        PyClassificationSvmParams = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmParams')
 
         X, y = check_X_y(X, y, dtype=[np.float64, np.float32], force_all_finite=False)
 

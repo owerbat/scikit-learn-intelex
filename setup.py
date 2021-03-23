@@ -327,8 +327,14 @@ def getpyexts():
     print('cpp_files:', cpp_files)
     print('pyx_files:', pyx_files)
     for f in pyx_files:
-        copy_file(f, jp('build', f + '_host.pyx'))
-        copy_file(f, jp('build', f + '_dpc.pyx'))
+        copy_file(f, jp('build', f))
+        # copy_file(f, jp('build', f + '_dpc.pyx'))
+
+    main_pyx = 'daal4py/onedal/onedal.pyx'
+    main_host_pyx = 'build/daal4py/onedal/onedal_host.pyx'
+    main_dpc_pyx = 'build/daal4py/onedal/onedal_dpc.pyx'
+    copy_file(main_pyx, main_host_pyx)
+    copy_file(main_pyx, main_dpc_pyx)
 
     for f in pxi_files:
         copy_file(f, jp('build', f))
@@ -340,17 +346,16 @@ def getpyexts():
     print(pyx_dpc_files)
 
     print(pyx_host_files + cpp_files)
-
+    import multiprocessing
     exts = []
-    exts.extend(cythonize([Extension('_onedal4py_host',
-                                sources=pyx_host_files + cpp_files,
+    exts.extend(cythonize(Extension('_onedal4py_host',
+                                sources=[main_host_pyx] + cpp_files,
                                 include_dirs=include_dir_plat,
                                 extra_compile_args=eca,
                                 extra_link_args=ela,
                                 libraries=onedal_libraries,
                                 library_dirs=ONEDAL_LIBDIRS,
-                                language='c++')
-    ]))
+                                language='c++'), nthreads=4))
     print('>>> DPCPP part')
     print('> DPCTL_LIBS: ', DPCTL_LIBS)
     print('> DPCTL_INCDIRS: ', DPCTL_INCDIRS)

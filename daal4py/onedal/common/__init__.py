@@ -14,6 +14,6 @@
 # limitations under the License.
 #===============================================================================
 
-from .kernel_functions import linear_kernel, rbf_kernel, poly_kernel
+from .utils import _execute_with_dpc_or_host
 
-__all__ = ['linear_kernel', 'rbf_kernel', 'poly_kernel']
+__all__ = ['_execute_with_dpc_or_host']

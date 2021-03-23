@@ -13,9 +13,6 @@ from libcpp cimport bool
 
 include "svm.pxi"
 
-npc.import_array()
-
-# new classification_svm(to_std_string(<PyObject *>kernel), c, accuracy_threshold, max_iteration_count, cache_size, shrinking)
 cdef class PyClassificationSvmParams:
     cdef classification_svm_params pt
 

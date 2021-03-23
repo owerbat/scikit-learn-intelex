@@ -24,7 +24,7 @@ const auto linear_kernel_compute::get_descriptor(linear_kernel_params & params, 
 {
     // if (data_type_input == data_type::float32)
     {
-        return linear_kernel::descriptor<float> {};
+        return linear_kernel::descriptor<float> {}.set_scale(params.scale).set_shift(params.shift);
     }
     // else
     {

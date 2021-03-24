@@ -21,6 +21,14 @@ cdef class PyClassificationSvmParams:
         self.pt.kernel = to_std_string(<PyObject *>kernel)
 
     @property
+    def class_count(self):
+        return self.pt.class_count
+
+    @class_count.setter
+    def class_count(self,val):
+        self.pt.class_count = val
+
+    @property
     def c(self):
         return self.pt.c
 
@@ -35,6 +43,14 @@ cdef class PyClassificationSvmParams:
     @accuracy_threshold.setter
     def accuracy_threshold(self,val):
         self.pt.accuracy_threshold = val
+
+    @property
+    def max_iteration_count(self):
+        return self.pt.max_iteration_count
+
+    @max_iteration_count.setter
+    def max_iteration_count(self,val):
+        self.pt.max_iteration_count = val
 
 
 cdef class PyClassificationSvmTrain:

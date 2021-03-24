@@ -21,48 +21,100 @@
 
 namespace oneapi::dal::python
 {
-// template <typename fptype>
-// inline auto & get_descriptor_fptype(classification_svm_params & params)
-// {
-//     if (params.kernel == "linear")
-//     {
-//         auto kernel_desc = linear_kernel::descriptor<fptype> {};
-//         if (params.method == "smo")
-//         {
-//             return svm::descriptor<fptype, svm::method::smo, svm::task::classification, linear_kernel::descriptor<fptype> > { kernel_desc };
-//         }
-//         else if (params.method == "thunder")
-//         {
-//             return svm::descriptor<fptype, svm::method::thunder, svm::task::classification, linear_kernel::descriptor<fptype> > { kernel_desc };
-//         }
-//     }
-//     else if (params.kernel == "rbf")
-//     {
-//         auto kernel_desc = rbf_kernel::descriptor<fptype> {};
-//         if (params.method == "smo")
-//         {
-//             return svm::descriptor<fptype, svm::method::smo, svm::task::classification, rbf_kernel::descriptor<fptype> > { kernel_desc };
-//         }
-//         else if (params.method == "thunder")
-//         {
-//             return svm::descriptor<fptype, svm::method::thunder, svm::task::classification, rbf_kernel::descriptor<fptype> > { kernel_desc };
-//         }
-//     }
-//     throw std::runtime_error("get_descriptor_fptype");
-// }
-
-inline const auto get_descriptor(classification_svm_params & params, data_type data_type_input)
+template <typename KernelDescriptor>
+KernelDescriptor get_kernel_params(const classification_svm_params & params)
 {
-    // if (data_type_input == data_type::float64)
-    // {
-    //     return get_descriptor_fptype<double>(params);
-    // }
-    // else if (data_type_input == data_type::float32)
-    // {
-    //     return get_descriptor_fptype<float>(params);
-    // }
-    auto kernel_desc = linear_kernel::descriptor<float> {};
-    return svm::descriptor<float, svm::method::smo, svm::task::classification, linear_kernel::descriptor<float> > { kernel_desc };
+    if constexpr (std::is_same_v<typename KernelDescriptor::tag_t, rbf_kernel::detail::descriptor_tag>)
+    {
+        return KernelDescriptor {}.set_sigma(params.sigma);
+    }
+    return KernelDescriptor {};
+}
+
+template <typename Descriptor, typename... Args>
+auto train_descriptor_impl(Descriptor descriptor, const classification_svm_params & params, Args &&... args)
+{
+    descriptor.set_c(params.c)
+        .set_class_count(params.class_count)
+        .set_accuracy_threshold(params.accuracy_threshold)
+        .set_max_iteration_count(params.max_iteration_count)
+        .set_cache_size(params.shrinking)
+        .set_kernel(get_kernel_params<typename Descriptor::kernel_t>(params));
+
+    return python::train(descriptor, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+svm::train_result<svm::task::classification> train_impl(classification_svm_params & params, data_type data_type_input, Args &&... args)
+{
+    if (data_type_input == data_type::float32 && params.method == "smo" && params.kernel == "linear")
+    {
+        return train_descriptor_impl(svm::descriptor<float, svm::method::smo, svm::task::classification, linear_kernel::descriptor<float> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float32 && params.method == "smo" && params.kernel == "rbf")
+    {
+        return train_descriptor_impl(svm::descriptor<float, svm::method::smo, svm::task::classification, rbf_kernel::descriptor<float> > {}, params,
+                                     std::forward<Args>(args)...);
+    }
+    if (data_type_input == data_type::float32 && params.method == "smo" && params.kernel == "poly")
+    {
+        return train_descriptor_impl(svm::descriptor<float, svm::method::smo, svm::task::classification, polynomial_kernel::descriptor<float> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float32 && params.method == "thunder" && params.kernel == "linear")
+    {
+        return train_descriptor_impl(svm::descriptor<float, svm::method::thunder, svm::task::classification, linear_kernel::descriptor<float> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float32 && params.method == "thunder" && params.kernel == "rbf")
+    {
+        return train_descriptor_impl(svm::descriptor<float, svm::method::thunder, svm::task::classification, rbf_kernel::descriptor<float> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float64 && params.method == "thunder" && params.kernel == "poly")
+    {
+        return train_descriptor_impl(
+            svm::descriptor<float, svm::method::thunder, svm::task::classification, polynomial_kernel::descriptor<float> > {}, params,
+            std::forward<Args>(args)...);
+    }
+    if (data_type_input == data_type::float64 && params.method == "smo" && params.kernel == "linear")
+    {
+        return train_descriptor_impl(svm::descriptor<double, svm::method::smo, svm::task::classification, linear_kernel::descriptor<double> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float64 && params.method == "smo" && params.kernel == "rbf")
+    {
+        return train_descriptor_impl(svm::descriptor<double, svm::method::smo, svm::task::classification, rbf_kernel::descriptor<double> > {}, params,
+                                     std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float64 && params.method == "smo" && params.kernel == "poly")
+    {
+        return train_descriptor_impl(svm::descriptor<double, svm::method::smo, svm::task::classification, polynomial_kernel::descriptor<double> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float64 && params.method == "thunder" && params.kernel == "linear")
+    {
+        return train_descriptor_impl(svm::descriptor<double, svm::method::thunder, svm::task::classification, linear_kernel::descriptor<double> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float64 && params.method == "thunder" && params.kernel == "rbf")
+    {
+        return train_descriptor_impl(svm::descriptor<double, svm::method::thunder, svm::task::classification, rbf_kernel::descriptor<double> > {},
+                                     params, std::forward<Args>(args)...);
+    }
+    else if (data_type_input == data_type::float64 && params.method == "thunder" && params.kernel == "poly")
+    {
+        return train_descriptor_impl(
+            svm::descriptor<double, svm::method::thunder, svm::task::classification, polynomial_kernel::descriptor<double> > {}, params,
+            std::forward<Args>(args)...);
+    }
+
+    else
+    {
+        return train_descriptor_impl(svm::descriptor<double, svm::method::smo, svm::task::classification, rbf_kernel::descriptor<double> > {}, params,
+                                     std::forward<Args>(args)...);
+    }
 }
 
 // from descriptor
@@ -77,9 +129,7 @@ void classification_svm_train::train(PyObject * data, PyObject * labels, PyObjec
     auto weights_table = _input_to_onedal_table(weights);
     auto data_type     = data_table.get_metadata().get_data_type(0);
 
-    auto descriptor = get_descriptor(params_, data_type);
-    train_result_   = python::train(descriptor, data_table, labels_table, weights_table);
-    printf("[classification_svm] finish train\n");
+    train_result_ = train_impl(params_, data_type, data_table, labels_table, weights_table);
 }
 
 // attributes from train_result
@@ -126,8 +176,8 @@ void classification_svm_infer::infer(PyObject * data, PyObject * support_vectors
     auto coeffs_table          = _input_to_onedal_table(coeffs);
     auto biases_table          = _input_to_onedal_table(biases);
 
-    auto data_type  = data_table.get_metadata().get_data_type(0);
-    auto descriptor = get_descriptor(params_, data_type);
+    auto data_type = data_table.get_metadata().get_data_type(0);
+    // auto descriptor = get_descriptor(params_, data_type);
 
     auto model = svm::model<svm::task::classification> {}
                      .set_support_vectors(support_vectors_table)
@@ -135,7 +185,7 @@ void classification_svm_infer::infer(PyObject * data, PyObject * support_vectors
                      .set_biases(biases_table)
                      .set_first_class_label(0)
                      .set_second_class_label(1);
-    infer_result_ = python::infer(descriptor, model, data_table);
+    // infer_result_ = python::infer(descriptor, model, data_table);
 }
 
 // attributes from infer_result

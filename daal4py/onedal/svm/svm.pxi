@@ -9,6 +9,7 @@ cdef extern from "svm/svm_py.h" namespace "oneapi::dal::python":
     ctypedef struct classification_svm_params:
         string method
         string kernel
+        int class_count
         double c
         double accuracy_threshold
         int max_iteration_count

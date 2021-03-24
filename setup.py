@@ -319,9 +319,18 @@ def getpyexts():
 
     # copy_tree('daal4py/onedal', 'build/daal4py/onedal')
 
+    import re
+    filter_rule = re.compile(r'.*')
+    # filter_rule = re.compile(r'.*kernel_function.*')
+
+
     cpp_files=glob.glob("daal4py/onedal/**/*.cpp")
     pyx_files=glob.glob("daal4py/onedal/**/*.pyx")
     pxi_files=glob.glob("daal4py/onedal/**/*.pxi")
+
+    cpp_files = [ s for s in cpp_files if filter_rule.match(s)]
+    pyx_files = [ s for s in pyx_files if filter_rule.match(s)]
+    pxi_files = [ s for s in pxi_files if filter_rule.match(s)]
 
     distutils.dir_util.create_tree('build', pyx_files)
     print('cpp_files:', cpp_files)

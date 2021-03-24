@@ -24,6 +24,8 @@
     #include "dpctl_sycl_queue_manager.h"
 #endif
 
+#include <unordered_map>
+
 namespace oneapi::dal::python
 {
 template <typename... Args>

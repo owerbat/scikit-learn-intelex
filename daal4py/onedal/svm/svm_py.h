@@ -28,6 +28,7 @@ struct classification_svm_params
     std::string kernel;
     std::string method;
     double c;
+    int class_count;
     double accuracy_threshold;
     int max_iteration_count;
     double cache_size;

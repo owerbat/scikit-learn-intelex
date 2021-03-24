@@ -20,15 +20,23 @@
 
 namespace oneapi::dal::python
 {
-const auto linear_kernel_compute::get_descriptor(linear_kernel_params & params, data_type data_type_input)
+template <typename Descriptor, typename... Args>
+auto compute_descriptor_impl(Descriptor descriptor, const linear_kernel_params & params, Args &&... args)
 {
-    // if (data_type_input == data_type::float32)
+    descriptor.set_scale(params.scale).set_shift(params.shift);
+    return python::compute(descriptor, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+linear_kernel::compute_result<> compute_impl(linear_kernel_params & params, data_type data_type_input, Args &&... args)
+{
+    if (data_type_input == data_type::float32)
     {
-        return linear_kernel::descriptor<float> {}.set_scale(params.scale).set_shift(params.shift);
+        return compute_descriptor_impl(linear_kernel::descriptor<float> {}, params, std::forward<Args>(args)...);
     }
-    // else
+    else
     {
-        // return linear_kernel::descriptor<double> {};
+        return compute_descriptor_impl(linear_kernel::descriptor<double> {}, params, std::forward<Args>(args)...);
     }
 }
 
@@ -39,12 +47,10 @@ linear_kernel_compute::linear_kernel_compute(linear_kernel_params * params) : pa
 void linear_kernel_compute::compute(PyObject * x, PyObject * y)
 {
     thread_allow _allow;
-    auto x_table   = _input_to_onedal_table(x);
-    auto y_table   = _input_to_onedal_table(y);
-    auto data_type = x_table.get_metadata().get_data_type(0);
-
-    auto descriptor = get_descriptor(params_, data_type);
-    compute_result_ = python::compute(descriptor, x_table, y_table);
+    auto x_table    = _input_to_onedal_table(x);
+    auto y_table    = _input_to_onedal_table(y);
+    auto data_type  = x_table.get_metadata().get_data_type(0);
+    compute_result_ = compute_impl(params_, data_type, x_table, y_table);
 }
 
 // attributes from compute_result

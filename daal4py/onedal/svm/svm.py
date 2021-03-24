@@ -17,6 +17,7 @@
 from sklearn.base import ClassifierMixin
 
 import numpy as np
+from scipy import sparse as sp
 from importlib import import_module
 from daal4py.onedal.common import _execute_with_dpc_or_host
 from daal4py.onedal.common import _validate_targets, _check_X_y, _check_array, _get_sample_weight
@@ -41,7 +42,7 @@ from daal4py.onedal.common import _validate_targets, _check_X_y, _check_array, _
 
 
 class SVC(ClassifierMixin):
-    def __init__(self, C=1.0, kernel='rbf', *, gamma=1.0,
+    def __init__(self, C=1.0, kernel='rbf', *, gamma='scale',
                  coef0=0.0, tol=1e-3, cache_size=200.0, max_iter=-1,
                  class_weight=None,  decision_function_shape='ovr',
                  break_ties=False, algorithm='thunder', **kwargs):
@@ -57,11 +58,25 @@ class SVC(ClassifierMixin):
         self.break_ties = break_ties
         self.algorithm = algorithm
 
-    @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PyClassificationSvmParams")
+    def _compute_sigma(self, gamma, X):
+        if gamma == 'scale':
+            if sp.isspmatrix(X):
+                # var = E[X^2] - E[X]^2
+                X_sc = (X.multiply(X)).mean() - (X.mean())**2
+            else:
+                X_sc = X.var()
+            _gamma = 1.0 / (X.shape[1] * X_sc) if X_sc != 0 else 1.0
+        elif gamma == 'auto':
+            _gamma = 1.0 / X.shape[1]
+        else:
+            _gamma = gamma
+        return np.sqrt(0.5 / _gamma)
+
+    @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PySvmParams")
     def fit(self, X, y, sample_weight=None):
         # todo
         PyClassificationSvmTrain = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmTrain')
-        PyClassificationSvmParams = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmParams')
+        PyClassificationSvmParams = getattr(import_module('_onedal4py_host'), 'PySvmParams')
 
         X, y = _check_X_y(X, y, dtype=[np.float64, np.float32], force_all_finite=False)
         y, self.class_weight_, self.classes_ = _validate_targets(y, self.class_weight, X.dtype)
@@ -70,12 +85,12 @@ class SVC(ClassifierMixin):
         sample_weight = _get_sample_weight(X, y, sample_weight, self.class_weight_, self.classes_)
         print(sample_weight.shape, X.shape, y.shape)
         print(sample_weight)
-        max_iter = 1000 if self.max_iter == -1 else self.max_iter
         self._onedal_params = PyClassificationSvmParams(self.algorithm, self.kernel)
         self._onedal_params.c = self.C
         self._onedal_params.class_count = len(self.classes_)
         self._onedal_params.accuracy_threshold = self.tol
-        self._onedal_params.max_iteration_count = self.max_iter
+        self._onedal_params.sigma = self._compute_sigma(self.gamma, X)
+        self._onedal_params.max_iteration_count = 1000 if self.max_iter == -1 else self.max_iter
 
         c_svm = PyClassificationSvmTrain(self._onedal_params)
         c_svm.train(X, y, sample_weight)

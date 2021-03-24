@@ -13,8 +13,8 @@ from libcpp cimport bool
 
 include "svm.pxi"
 
-cdef class PyClassificationSvmParams:
-    cdef classification_svm_params pt
+cdef class PySvmParams:
+    cdef svm_params pt
 
     def __init__(self, method, kernel):
         self.pt.method = to_std_string(<PyObject *>method)
@@ -52,12 +52,19 @@ cdef class PyClassificationSvmParams:
     def max_iteration_count(self,val):
         self.pt.max_iteration_count = val
 
+    @property
+    def sigma(self):
+        return self.pt.sigma
+
+    @sigma.setter
+    def sigma(self,val):
+        self.pt.sigma = val
 
 cdef class PyClassificationSvmTrain:
-    cdef classification_svm_train * thisptr
+    cdef svm_train[classification] * thisptr
 
-    def __cinit__(self, PyClassificationSvmParams params):
-        self.thisptr = new classification_svm_train(&params.pt)
+    def __cinit__(self, PySvmParams params):
+        self.thisptr = new svm_train[classification](&params.pt)
 
     def __dealloc__(self):
         del self.thisptr
@@ -79,10 +86,10 @@ cdef class PyClassificationSvmTrain:
 
 
 cdef class PyClassificationSvmInfer:
-    cdef classification_svm_infer * thisptr
+    cdef svm_infer[classification] * thisptr
 
-    def __cinit__(self, PyClassificationSvmParams params):
-        self.thisptr = new classification_svm_infer(&params.pt)
+    def __cinit__(self, PySvmParams params):
+        self.thisptr = new svm_infer[classification](&params.pt)
 
     def __dealloc__(self):
         del self.thisptr

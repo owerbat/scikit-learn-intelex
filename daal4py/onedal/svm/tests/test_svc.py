@@ -48,7 +48,7 @@ def test_sample_weight():
     X = np.array([[-2, 0], [-1, -1], [0, -2], [0, 2], [1, 1], [2, 2]])
     y = np.array([1, 1, 1, 2, 2, 2])
 
-    clf = SVC()
+    clf = SVC(kernel='linear')
     clf.fit(X, y, sample_weight=[1] * 6)
     assert_array_almost_equal(clf.intercept_, [0.0])
 

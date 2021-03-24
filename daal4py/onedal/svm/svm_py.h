@@ -23,7 +23,7 @@
 
 namespace oneapi::dal::python
 {
-struct classification_svm_params
+struct svm_params
 {
     std::string kernel;
     std::string method;
@@ -33,6 +33,7 @@ struct classification_svm_params
     int max_iteration_count;
     double cache_size;
     bool shrinking;
+    double epsilon;
     double shift;
     double scale;
     int degree;
@@ -40,11 +41,12 @@ struct classification_svm_params
 };
 
 // clas <task>_<algorithm>
-class classification_svm_train
+template <typename Task>
+class svm_train
 {
 public:
     // from descriptor
-    classification_svm_train(classification_svm_params * params);
+    svm_train(svm_params * params);
 
     // attributes from train_input
     void train(PyObject * data, PyObject * labels, PyObject * weights);
@@ -65,16 +67,17 @@ public:
     PyObject * get_biases();
 
 private:
-    classification_svm_params params_;
-    svm::train_result<svm::task::classification> train_result_;
+    svm_params params_;
+    svm::train_result<Task> train_result_;
 };
 
 // // clas <task>_<algorithm>
-class classification_svm_infer
+template <typename Task>
+class svm_infer
 {
 public:
     // from descriptor
-    classification_svm_infer(classification_svm_params * params);
+    svm_infer(svm_params * params);
 
     // attributes from infer_input.hpp expect model
     void infer(PyObject * data, PyObject * support_vectors, PyObject * coeffs, PyObject * biases);
@@ -86,8 +89,8 @@ public:
     PyObject * get_decision_function();
 
 private:
-    classification_svm_params params_;
-    svm::infer_result<svm::task::classification> infer_result_;
+    svm_params params_;
+    svm::infer_result<Task> infer_result_;
 };
 
 } // namespace oneapi::dal::python

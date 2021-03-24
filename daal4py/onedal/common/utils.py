@@ -31,7 +31,7 @@ def _execute_with_dpc_or_host(*name_classes):
             #     else:
             #         from _onedal4py_host import PyClassificationSvmTrain, PyClassificationSvmParams
             # else:
-            PyClassificationSvmParams = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmParams')
+            # PyClassificationSvmParams = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmParams')
                 # from _onedal4py_host import PyClassificationSvmTrain, PyClassificationSvmParams
 
             retval = function(*args, **kwargs)

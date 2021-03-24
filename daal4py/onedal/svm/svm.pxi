@@ -16,6 +16,7 @@ cdef extern from "svm/svm_py.h" namespace "oneapi::dal::python":
         string kernel
         int class_count
         double c
+        double epsilon
         double accuracy_threshold
         int max_iteration_count
         double cache_size

@@ -37,6 +37,14 @@ cdef class PySvmParams:
         self.pt.c = val
 
     @property
+    def epsilon(self):
+        return self.pt.epsilon
+
+    @epsilon.setter
+    def epsilon(self,val):
+        self.pt.epsilon = val
+
+    @property
     def accuracy_threshold(self):
         return self.pt.accuracy_threshold
 
@@ -102,3 +110,44 @@ cdef class PyClassificationSvmInfer:
 
     def get_decision_function(self):
         return <object>self.thisptr.get_decision_function()
+
+cdef class PyRegressionSvmTrain:
+    cdef svm_train[regression] * thisptr
+
+    def __cinit__(self, PySvmParams params):
+        self.thisptr = new svm_train[regression](&params.pt)
+
+    def __dealloc__(self):
+        del self.thisptr
+
+    def train(self, data, labels, weights):
+        self.thisptr.train(<PyObject *>data, <PyObject *>labels, <PyObject *>weights)
+
+    def get_support_vectors(self):
+        return <object>self.thisptr.get_support_vectors()
+
+    def get_support_indices(self):
+        return <object>self.thisptr.get_support_indices()
+
+    def get_coeffs(self):
+        return <object>self.thisptr.get_coeffs()
+
+    def get_biases(self):
+        return <object>self.thisptr.get_biases()
+
+
+cdef class PyRegressionSvmInfer:
+    cdef svm_infer[regression] * thisptr
+
+    def __cinit__(self, PySvmParams params):
+        self.thisptr = new svm_infer[regression](&params.pt)
+
+    def __dealloc__(self):
+        del self.thisptr
+
+    def infer(self, data, support_vectors, coeffs, biases):
+        self.thisptr.infer(<PyObject *>data, <PyObject *>support_vectors, <PyObject *>coeffs, <PyObject *>biases)
+
+    def get_labels(self):
+        return <object>self.thisptr.get_labels()
+

@@ -29,11 +29,11 @@ struct svm_params
     std::string method;
     double c;
     int class_count;
+    double epsilon;
     double accuracy_threshold;
     int max_iteration_count;
     double cache_size;
     bool shrinking;
-    double epsilon;
     double shift;
     double scale;
     int degree;

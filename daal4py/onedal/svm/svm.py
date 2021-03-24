@@ -14,7 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-from sklearn.base import ClassifierMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 from scipy import sparse as sp
@@ -40,23 +41,26 @@ from daal4py.onedal.common import _validate_targets, _check_X_y, _check_array, _
 # mac and other python
 # from _onedal4py_host import PyClassificationSvm
 
-
-class SVC(ClassifierMixin):
-    def __init__(self, C=1.0, kernel='rbf', *, gamma='scale',
-                 coef0=0.0, tol=1e-3, cache_size=200.0, max_iter=-1,
-                 class_weight=None,  decision_function_shape='ovr',
-                 break_ties=False, algorithm='thunder', **kwargs):
+class BaseSVM(BaseEstimator, metaclass=ABCMeta):
+    def __init__(self, C, epsilon, kernel='rbf', *, degree, gamma,
+                 coef0, tol, shrinking, cache_size, max_iter,
+                 class_weight,  decision_function_shape,
+                 break_ties, algorithm, **kwargs):
 
         self.C = C
+        self.epsilon = epsilon
         self.kernel = kernel
+        self.degree = degree
         self.gamma = gamma
         self.tol = tol
+        self.shrinking=shrinking
         self.cache_size = cache_size
         self.max_iter = max_iter
         self.class_weight = class_weight
         self.decision_function_shape = decision_function_shape
         self.break_ties = break_ties
         self.algorithm = algorithm
+
 
     def _compute_sigma(self, gamma, X):
         if gamma == 'scale':
@@ -72,38 +76,32 @@ class SVC(ClassifierMixin):
             _gamma = gamma
         return np.sqrt(0.5 / _gamma)
 
-    @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PySvmParams")
-    def fit(self, X, y, sample_weight=None):
-        # todo
-        PyClassificationSvmTrain = getattr(import_module('_onedal4py_host'), 'PyClassificationSvmTrain')
-        PyClassificationSvmParams = getattr(import_module('_onedal4py_host'), 'PySvmParams')
 
+    def _fit(self, X, y, sample_weight, Computer):
         X, y = _check_X_y(X, y, dtype=[np.float64, np.float32], force_all_finite=False)
         y, self.class_weight_, self.classes_ = _validate_targets(y, self.class_weight, X.dtype)
-        print(type(X), type(y))
-        print(X.dtype, y.dtype)
         sample_weight = _get_sample_weight(X, y, sample_weight, self.class_weight_, self.classes_)
-        print(sample_weight.shape, X.shape, y.shape)
-        print(sample_weight)
-        self._onedal_params = PyClassificationSvmParams(self.algorithm, self.kernel)
+
+        PySvmParams = getattr(import_module('_onedal4py_host'), 'PySvmParams')
+
+        self._onedal_params = PySvmParams(self.algorithm, self.kernel)
         self._onedal_params.c = self.C
+        self._onedal_params.epsilon = self.epsilon
         self._onedal_params.class_count = len(self.classes_)
         self._onedal_params.accuracy_threshold = self.tol
         self._onedal_params.sigma = self._compute_sigma(self.gamma, X)
         self._onedal_params.max_iteration_count = 1000 if self.max_iter == -1 else self.max_iter
 
-        c_svm = PyClassificationSvmTrain(self._onedal_params)
+        c_svm = Computer(self._onedal_params)
         c_svm.train(X, y, sample_weight)
 
         self.dual_coef_ = c_svm.get_coeffs().T
         self.support_vectors_ = c_svm.get_support_vectors()
         self.intercept_ = c_svm.get_biases().ravel()
         self.support_ = c_svm.get_support_indices().ravel()
-
-        print('End SVC FIT')
         return self
 
-    def predict(self, X):
+    def _predict(self, X, Computer):
         if self.break_ties and self.decision_function_shape == 'ovo':
             raise ValueError("break_ties must be False when "
                              "decision_function_shape is 'ovo'")
@@ -112,15 +110,51 @@ class SVC(ClassifierMixin):
                 len(self.classes_) > 2:
             y = np.argmax(self.decision_function(X), axis=1)
         else:
-            from _onedal4py_host import PyClassificationSvmInfer
             X = _check_array(X, dtype=[np.float64, np.float32], force_all_finite=False)
-            print('Infer: start')
-            c_svm = PyClassificationSvmInfer(self._onedal_params)
+            c_svm = Computer(self._onedal_params)
             c_svm.infer(X, self.support_vectors_, self.dual_coef_.T, self.intercept_)
-            print('Infer: finish')
             y = c_svm.get_labels()
-            if len(self.classes_) == 2:
-                y = y.ravel()
+        return y
+
+
+
+class SVR(RegressorMixin, BaseSVM):
+    def __init__(self, C=1.0, epsilon=0.1, kernel='rbf', *, degree=3,
+                 gamma='scale', coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0,
+                 max_iter=-1, algorithm='thunder', **kwargs):
+        super().__init__(C=C, epsilon=epsilon, kernel=kernel, degree=degree, gamma=gamma,
+            coef0=coef0, tol=tol, shrinking=shrinking,
+            cache_size=cache_size, max_iter=max_iter, class_weight=None,
+            decision_function_shape=None, break_ties=False, algorithm=algorithm)
+
+    @_execute_with_dpc_or_host("PyRegressionSvmTrain", "PySvmParams")
+    def fit(self, X, y, sample_weight=None):
+        return super()._fit(X, y, sample_weight, getattr(import_module('_onedal4py_host'), 'PyRegressionSvmTrain'))
+
+    @_execute_with_dpc_or_host("PyRegressionSvmInfer")
+    def predict(self, X):
+        return super()._predict(X, getattr(import_module('_onedal4py_host'), 'PyRegressionSvmInfer'))
+
+
+class SVC(ClassifierMixin, BaseSVM):
+    def __init__(self, C=1.0, kernel='rbf', *, degree=3, gamma='scale',
+                 coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0, max_iter=-1,
+                 class_weight=None,  decision_function_shape='ovr',
+                 break_ties=False, algorithm='thunder', **kwargs):
+        super().__init__(C=C, epsilon=0.0, kernel=kernel, degree=degree, gamma=gamma,
+            coef0=coef0, tol=tol, shrinking=shrinking,
+            cache_size=cache_size, max_iter=max_iter, class_weight=class_weight,
+            decision_function_shape=decision_function_shape, break_ties=break_ties, algorithm=algorithm)
+
+    @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PySvmParams")
+    def fit(self, X, y, sample_weight=None):
+        return super()._fit(X, y, sample_weight, getattr(import_module('_onedal4py_host'), 'PyClassificationSvmTrain'))
+
+    @_execute_with_dpc_or_host("PyClassificationSvmInfer", "PySvmParams")
+    def predict(self, X):
+        y = super()._predict(X, getattr(import_module('_onedal4py_host'), 'PyClassificationSvmInfer'))
+        if len(self.classes_) == 2:
+            y = y.ravel()
         return self.classes_.take(np.asarray(y, dtype=np.intp))
 
 

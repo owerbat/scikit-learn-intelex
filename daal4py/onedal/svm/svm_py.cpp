@@ -28,6 +28,11 @@ KernelDescriptor get_kernel_params(const svm_params & params)
     {
         return KernelDescriptor {}.set_sigma(params.sigma);
     }
+    if constexpr (std::is_same_v<typename KernelDescriptor::tag_t, polynomial_kernel::detail::descriptor_tag>)
+    {
+        return KernelDescriptor {}.set_scale(params.scale).set_shift(params.shift);
+    }
+
     return KernelDescriptor {};
 }
 
@@ -39,6 +44,8 @@ Result compute_descriptor_impl(Descriptor descriptor, const svm_params & params,
         .set_accuracy_threshold(params.accuracy_threshold)
         .set_max_iteration_count(params.max_iteration_count)
         .set_cache_size(params.shrinking)
+        .set_tau(params.tau)
+        .set_shrinking(params.shrinking)
         .set_kernel(get_kernel_params<typename Descriptor::kernel_t>(params));
     if constexpr (std::is_same_v<Task, svm::task::classification>)
     {

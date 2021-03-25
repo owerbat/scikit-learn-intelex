@@ -21,22 +21,42 @@
 namespace oneapi::dal::python
 {
 template <typename Descriptor, typename... Args>
-auto compute_descriptor_impl(Descriptor descriptor, const linear_kernel_params & params, Args &&... args)
+auto linear_compute_descriptor_impl(Descriptor descriptor, const linear_kernel_params & params, Args &&... args)
 {
     descriptor.set_scale(params.scale).set_shift(params.shift);
     return python::compute(descriptor, std::forward<Args>(args)...);
 }
 
+template <typename Descriptor, typename... Args>
+auto rbf_compute_descriptor_impl(Descriptor descriptor, const rbf_kernel_params & params, Args &&... args)
+{
+    descriptor.set_sigma(params.sigma);
+    return python::compute(descriptor, std::forward<Args>(args)...);
+}
+
 template <typename... Args>
-linear_kernel::compute_result<> compute_impl(linear_kernel_params & params, data_type data_type_input, Args &&... args)
+linear_kernel::compute_result<> linear_compute_impl(linear_kernel_params & params, data_type data_type_input, Args &&... args)
 {
     if (data_type_input == data_type::float32)
     {
-        return compute_descriptor_impl(linear_kernel::descriptor<float> {}, params, std::forward<Args>(args)...);
+        return linear_compute_descriptor_impl(linear_kernel::descriptor<float> {}, params, std::forward<Args>(args)...);
     }
     else
     {
-        return compute_descriptor_impl(linear_kernel::descriptor<double> {}, params, std::forward<Args>(args)...);
+        return linear_compute_descriptor_impl(linear_kernel::descriptor<double> {}, params, std::forward<Args>(args)...);
+    }
+}
+
+template <typename... Args>
+rbf_kernel::compute_result<> rbf_compute_impl(rbf_kernel_params & params, data_type data_type_input, Args &&... args)
+{
+    if (data_type_input == data_type::float32)
+    {
+        return rbf_compute_descriptor_impl(rbf_kernel::descriptor<float> {}, params, std::forward<Args>(args)...);
+    }
+    else
+    {
+        return rbf_compute_descriptor_impl(rbf_kernel::descriptor<double> {}, params, std::forward<Args>(args)...);
     }
 }
 
@@ -50,11 +70,29 @@ void linear_kernel_compute::compute(PyObject * x, PyObject * y)
     auto x_table    = _input_to_onedal_table(x);
     auto y_table    = _input_to_onedal_table(y);
     auto data_type  = x_table.get_metadata().get_data_type(0);
-    compute_result_ = compute_impl(params_, data_type, x_table, y_table);
+    compute_result_ = linear_compute_impl(params_, data_type, x_table, y_table);
 }
 
 // attributes from compute_result
 PyObject * linear_kernel_compute::get_values()
+{
+    return _table_to_numpy(compute_result_.get_values());
+}
+
+rbf_kernel_compute::rbf_kernel_compute(rbf_kernel_params * params) : params_(*params) {}
+
+// attributes from compute_input
+void rbf_kernel_compute::compute(PyObject * x, PyObject * y)
+{
+    thread_allow _allow;
+    auto x_table    = _input_to_onedal_table(x);
+    auto y_table    = _input_to_onedal_table(y);
+    auto data_type  = x_table.get_metadata().get_data_type(0);
+    compute_result_ = rbf_compute_impl(params_, data_type, x_table, y_table);
+}
+
+// attributes from compute_result
+PyObject * rbf_kernel_compute::get_values()
 {
     return _table_to_numpy(compute_result_.get_values());
 }

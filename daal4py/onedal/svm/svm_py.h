@@ -32,6 +32,7 @@ struct svm_params
     double epsilon;
     double accuracy_threshold;
     int max_iteration_count;
+    double tau;
     double cache_size;
     bool shrinking;
     double shift;

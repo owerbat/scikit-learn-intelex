@@ -65,14 +65,14 @@ private:
 
 template <typename T, typename ConstDeleter>
 inline dal::homogen_table create_homogen_table(const T * data_pointer, const std::size_t row_count, const std::size_t column_count,
-                                               ConstDeleter && data_deleter)
+                                               const dal::data_layout layout, ConstDeleter && data_deleter)
 {
 #ifdef _DPCPP_
     auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
     if (dpctl_queue != NULL)
     {
         cl::sycl::queue & sycl_queue = *reinterpret_cast<cl::sycl::queue *>(dpctl_queue);
-        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, dal::data_layout::row_major);
+        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, layout);
     }
     else
     {
@@ -80,41 +80,32 @@ inline dal::homogen_table create_homogen_table(const T * data_pointer, const std
     }
 #else
 
-    return dal::homogen_table(data_pointer, row_count, column_count, data_deleter, dal::data_layout::row_major);
+    return dal::homogen_table(data_pointer, row_count, column_count, data_deleter, layout);
 #endif
 }
 
 template <typename T>
 inline dal::homogen_table _make_ht(PyArrayObject * array)
 {
-    assert(array_is_behaved(array));
-    if (array_numdims(array) == 2)
-    {
-        // printf("[CPP]: _make_ht: array_numdims(array) == 2\n");
-        T * data_pointer          = reinterpret_cast<T *>(array_data(array));
-        const size_t row_count    = static_cast<size_t>(array_size(array, 0));
-        const size_t column_count = static_cast<size_t>(array_size(array, 1));
-        auto res_table            = create_homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
-        // we need it increment the ref-count if we use the input array in-place
-        // if we copied/converted it we already own our own reference
-        if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
-        // printf("[CPP]: _make_ht: finish\n");
-        return res_table;
-    }
-    else if (array_numdims(array) == 1)
-    {
-        // printf("[CPP]: _make_ht: array_numdims(array) == 1\n");
-        T * data_pointer          = reinterpret_cast<T *>(array_data(array));
-        const size_t row_count    = static_cast<size_t>(array_size(array, 0));
-        const size_t column_count = 1;
-        auto res_table            = create_homogen_table(data_pointer, row_count, column_count, NumpyDeleter(array));
-        if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
-        return res_table;
-    }
-    else
+    size_t column_count = 1;
+
+    if (array_numdims(array) > 2)
     {
         throw std::runtime_error("Input array has wrong dimensionality (must be 2d).");
     }
+    T * data_pointer       = reinterpret_cast<T *>(array_data(array));
+    const size_t row_count = static_cast<size_t>(array_size(array, 0));
+    if (array_numdims(array) == 2)
+    {
+        column_count = static_cast<size_t>(array_size(array, 1));
+    }
+    const auto layout = array_is_behaved_F(array) ? dal::data_layout::column_major : dal::data_layout::row_major;
+    auto res_table    = create_homogen_table(data_pointer, row_count, column_count, layout, NumpyDeleter(array));
+    // we need it increment the ref-count if we use the input array in-place
+    // if we copied/converted it we already own our own reference
+    if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
+    // printf("[CPP]: _make_ht: finish\n");
+    return res_table;
 }
 
 dal::table _input_to_onedal_table(PyObject * obj)
@@ -133,7 +124,7 @@ dal::table _input_to_onedal_table(PyObject * obj)
     { // we got a numpy array
         PyArrayObject * ary = (PyArrayObject *)obj;
         // printf("[CPP]: _input_to_onedal_table: is_array\n");
-        if (array_is_behaved(ary))
+        if (array_is_behaved(ary) || array_is_behaved_F(ary))
         {
             switch (PyArray_DESCR(ary)->type)
             {

@@ -49,3 +49,33 @@ cdef class PyLinearKernelCompute:
 
     def get_values(self):
         return <object>self.thisptr.get_values()
+
+cdef class PyRbfKernelParams:
+    cdef rbf_kernel_params pt
+
+    def __init__(self, sigma):
+        self.pt.sigma = sigma
+
+    @property
+    def sigma(self):
+        return self.pt.sigma
+
+    @sigma.setter
+    def sigma(self,val):
+        self.pt.sigma = val
+
+
+cdef class PyRbfKernelCompute:
+    cdef rbf_kernel_compute * thisptr
+
+    def __cinit__(self, PyRbfKernelParams params):
+        self.thisptr = new rbf_kernel_compute(&params.pt)
+
+    def __dealloc__(self):
+        del self.thisptr
+
+    def compute(self, x, y):
+        self.thisptr.compute(<PyObject *>x, <PyObject *>y)
+
+    def get_values(self):
+        return <object>self.thisptr.get_values()

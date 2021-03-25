@@ -19,6 +19,7 @@ cdef extern from "svm/svm_py.h" namespace "oneapi::dal::python":
         double epsilon
         double accuracy_threshold
         int max_iteration_count
+        double tau
         double cache_size
         bool shrinking
         double shift

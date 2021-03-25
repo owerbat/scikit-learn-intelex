@@ -27,7 +27,7 @@ from daal4py.onedal.common import _validate_targets, _check_X_y, _check_array, _
 class BaseSVM(BaseEstimator, metaclass=ABCMeta):
     @abstractmethod
     def __init__(self, C, epsilon, kernel='rbf', *, degree, gamma,
-                 coef0, tol, shrinking, cache_size, max_iter,
+                 coef0, tol, shrinking, cache_size, max_iter, tau,
                  class_weight,  decision_function_shape,
                  break_ties, algorithm, **kwargs):
 
@@ -41,12 +41,13 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         self.shrinking = shrinking
         self.cache_size = cache_size
         self.max_iter = max_iter
+        self.tau = tau
         self.class_weight = class_weight
         self.decision_function_shape = decision_function_shape
         self.break_ties = break_ties
         self.algorithm = algorithm
 
-    def _compute_sigma(self, gamma, X):
+    def _compute_gamma_sigma(self, gamma, X):
         if gamma == 'scale':
             if sp.isspmatrix(X):
                 # var = E[X^2] - E[X]^2
@@ -86,10 +87,11 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         self._onedal_params.class_count = 0 if self.classes_ is None else len(
             self.classes_)
         self._onedal_params.accuracy_threshold = self.tol
-        self._onedal_params.scale, self._onedal_params.sigma = self._compute_sigma(
+        self._onedal_params.scale, self._onedal_params.sigma = self._compute_gamma_sigma(
             self.gamma, X)
         self._onedal_params.shift = self.coef0
         self._onedal_params.max_iteration_count = 1000 if self.max_iter == -1 else self.max_iter
+        self._onedal_params.tau = self.tau
 
         c_svm = Computer(self._onedal_params)
         c_svm.train(X, y, sample_weight)
@@ -123,10 +125,10 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 class SVR(RegressorMixin, BaseSVM):
     def __init__(self, C=1.0, epsilon=0.1, kernel='rbf', *, degree=3,
                  gamma='scale', coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0,
-                 max_iter=-1, algorithm='thunder', **kwargs):
+                 max_iter=-1, tau=1e-12, algorithm='thunder', **kwargs):
         super().__init__(C=C, epsilon=epsilon, kernel=kernel, degree=degree, gamma=gamma,
-                         coef0=coef0, tol=tol, shrinking=shrinking,
-                         cache_size=cache_size, max_iter=max_iter, class_weight=None,
+                         coef0=coef0, tol=tol, shrinking=shrinking, cache_size=cache_size,
+                         max_iter=max_iter, tau=tau, class_weight=None,
                          decision_function_shape=None, break_ties=False, algorithm=algorithm)
 
     @_execute_with_dpc_or_host("PyRegressionSvmTrain", "PySvmParams")
@@ -143,11 +145,11 @@ class SVR(RegressorMixin, BaseSVM):
 class SVC(ClassifierMixin, BaseSVM):
     def __init__(self, C=1.0, kernel='rbf', *, degree=3, gamma='scale',
                  coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0, max_iter=-1,
-                 class_weight=None,  decision_function_shape='ovr',
+                 tau=1e-12, class_weight=None,  decision_function_shape='ovr',
                  break_ties=False, algorithm='thunder', **kwargs):
         super().__init__(C=C, epsilon=0.0, kernel=kernel, degree=degree, gamma=gamma,
-                         coef0=coef0, tol=tol, shrinking=shrinking,
-                         cache_size=cache_size, max_iter=max_iter, class_weight=class_weight,
+                         coef0=coef0, tol=tol, shrinking=shrinking, cache_size=cache_size,
+                         max_iter=max_iter, tau=tau, class_weight=class_weight,
                          decision_function_shape=decision_function_shape, break_ties=break_ties, algorithm=algorithm)
 
     def _validate_targets(self, y, dtype):

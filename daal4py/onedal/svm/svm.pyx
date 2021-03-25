@@ -63,6 +63,14 @@ cdef class PySvmParams:
         self.pt.max_iteration_count = val
 
     @property
+    def tau(self):
+        return self.pt.tau
+
+    @tau.setter
+    def tau(self,val):
+        self.pt.tau = val
+
+    @property
     def sigma(self):
         return self.pt.sigma
 

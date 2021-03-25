@@ -14,7 +14,7 @@ cdef extern from "prims/kernel_functions_py.h" namespace "oneapi::dal::python":
         double sigma
 
     cdef cppclass rbf_kernel_compute:
-        rbf_kernel_compute(linear_kernel_params *) except +
+        rbf_kernel_compute(rbf_kernel_params *) except +
         void compute(PyObject * x, PyObject * y) except +
         PyObject * get_values() except +
 

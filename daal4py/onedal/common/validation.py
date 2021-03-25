@@ -1,4 +1,4 @@
-#===============================================================================
+# ===============================================================================
 # Copyright 2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,11 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#===============================================================================
+# ===============================================================================
 
 import numpy as np
 import numbers
 import warnings
+
 
 def _column_or_1d(y):
     y = np.asarray(y)
@@ -53,11 +54,12 @@ def _compute_class_weight(class_weight, classes, y):
 
     return weight
 
+
 def _validate_targets(y, class_weight, dtype):
     y_ = _column_or_1d(y)
     classes, y = np.unique(y_, return_inverse=True)
     class_weight = _compute_class_weight(class_weight,
-                                              classes=classes, y=y_)
+                                         classes=classes, y=y_)
     if len(classes) < 2:
         raise ValueError(
             "The number of classes has to be greater than one; got %d"
@@ -65,13 +67,20 @@ def _validate_targets(y, class_weight, dtype):
 
     return np.asarray(y, dtype=dtype, order='C'), class_weight, classes
 
+
 def _check_array(array, dtype="numeric", accept_sparse=False, order=None, copy=False, force_all_finite=True,
-                ensure_2d=True):
+                 ensure_2d=True):
     # TODO
     from sklearn.utils.validation import check_array
-    return check_array(array=array, dtype=dtype, accept_sparse=accept_sparse,
-                order=order, copy=copy, force_all_finite=force_all_finite,
-                ensure_2d=ensure_2d)
+    array = check_array(array=array, dtype=dtype, accept_sparse=accept_sparse,
+                        order=order, copy=copy, force_all_finite=force_all_finite,
+                        ensure_2d=ensure_2d)
+
+    # TODO: If data is not contiguous copy to contiguous
+    # Need implemeted numpy table in oneDAL
+    if not array.flags.c_contiguous and not array.flags.f_contiguous:
+        array = np.ascontiguousarray(array, array.dtype)
+    return array
 
 
 def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=False, force_all_finite=True, ensure_2d=True):
@@ -79,9 +88,9 @@ def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=Fals
         raise ValueError("y cannot be None")
 
     X = _check_array(X, accept_sparse=accept_sparse,
-                    dtype=dtype, order=order, copy=copy,
-                    force_all_finite=force_all_finite,
-                    ensure_2d=ensure_2d)
+                     dtype=dtype, order=order, copy=copy,
+                     force_all_finite=force_all_finite,
+                     ensure_2d=ensure_2d)
 
     y = _column_or_1d(y)
     if y.dtype.kind == 'O':
@@ -98,6 +107,7 @@ def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=Fals
 
     return X, y
 
+
 def _get_sample_weight(X, y, sample_weight, class_weight, classes):
 
     n_samples = X.shape[0]
@@ -106,8 +116,8 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
         raise ValueError("n_samples=1")
 
     sample_weight = np.asarray([]
-                           if sample_weight is None
-                           else sample_weight, dtype=np.float64)
+                               if sample_weight is None
+                               else sample_weight, dtype=np.float64)
 
     sample_weight_count = sample_weight.shape[0]
     if sample_weight_count != 0 and sample_weight_count != n_samples:
@@ -148,6 +158,7 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
         for i, v in enumerate(class_weight):
             ww[y == i] *= v
     return ww
+
 
 def _check_is_fitted(estimator, attributes=None, *, msg=None):
     if msg is None:

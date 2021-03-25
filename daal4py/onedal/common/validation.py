@@ -16,6 +16,7 @@
 
 import numpy as np
 import numbers
+import warnings
 
 def _column_or_1d(y):
     y = np.asarray(y)
@@ -24,6 +25,7 @@ def _column_or_1d(y):
         return np.ravel(y)
     if len(shape) == 2 and shape[1] == 1:
         return np.ravel(y)
+
     raise ValueError(
         "y should be a 1d array, "
         "got an array of shape {} instead.".format(shape))
@@ -84,6 +86,15 @@ def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=Fals
     y = _column_or_1d(y)
     if y.dtype.kind == 'O':
         y = y.astype(np.float64)
+    # TODO: replace on daal4py
+    from sklearn.utils.validation import assert_all_finite
+    assert_all_finite(y)
+
+    lengths = [len(X), len(y)]
+    uniques = np.unique(lengths)
+    if len(uniques) > 1:
+        raise ValueError("Found input variables with inconsistent numbers of"
+                         " samples: %r" % [int(l) for l in lengths])
 
     return X, y
 
@@ -91,8 +102,15 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
 
     n_samples = X.shape[0]
     dtype = X.dtype
+    if n_samples == 1:
+        raise ValueError("n_samples=1")
 
-    if sample_weight is not None and len(sample_weight) != n_samples:
+    sample_weight = np.asarray([]
+                           if sample_weight is None
+                           else sample_weight, dtype=np.float64)
+
+    sample_weight_count = sample_weight.shape[0]
+    if sample_weight_count != 0 and sample_weight_count != n_samples:
         raise ValueError("sample_weight and X have incompatible shapes: "
                          "%r vs %r\n"
                          "Note: Sparse matrices cannot be indexed w/"
@@ -100,9 +118,9 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
                          % (len(sample_weight), X.shape))
 
     ww = None
-    if sample_weight is None and class_weight is None:
+    if sample_weight_count == 0 and class_weight is None:
         return ww
-    if sample_weight is None:
+    if sample_weight_count == 0:
         sample_weight = np.ones(n_samples, dtype=dtype)
     elif isinstance(sample_weight, numbers.Number):
         sample_weight = np.full(n_samples, sample_weight, dtype=dtype)
@@ -130,3 +148,22 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
         for i, v in enumerate(class_weight):
             ww[y == i] *= v
     return ww
+
+def _check_is_fitted(estimator, attributes=None, *, msg=None):
+    if msg is None:
+        msg = ("This %(name)s instance is not fitted yet. Call 'fit' with "
+               "appropriate arguments before using this estimator.")
+
+    if not hasattr(estimator, 'fit'):
+        raise TypeError("%s is not an estimator instance." % (estimator))
+
+    if attributes is not None:
+        if not isinstance(attributes, (list, tuple)):
+            attributes = [attributes]
+        attrs = all_or_any([hasattr(estimator, attr) for attr in attributes])
+    else:
+        attrs = [v for v in vars(estimator)
+                 if v.endswith("_") and not v.startswith("__")]
+
+    if not attrs:
+        raise AttributeError(msg % {'name': type(estimator).__name__})

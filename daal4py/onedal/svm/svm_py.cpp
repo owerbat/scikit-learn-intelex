@@ -196,8 +196,6 @@ template <typename Task>
 void svm_infer<Task>::infer(PyObject * data, PyObject * support_vectors, PyObject * coeffs, PyObject * biases)
 {
     thread_allow _allow;
-    printf("classification_svm::infer\n");
-
     auto data_table            = _input_to_onedal_table(data);
     auto support_vectors_table = _input_to_onedal_table(support_vectors);
     auto coeffs_table          = _input_to_onedal_table(coeffs);

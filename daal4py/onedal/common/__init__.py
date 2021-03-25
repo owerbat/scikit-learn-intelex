@@ -15,7 +15,7 @@
 #===============================================================================
 
 from .utils import _execute_with_dpc_or_host
-from .validation import _column_or_1d, _validate_targets, _check_X_y, _check_array, _get_sample_weight
+from .validation import _column_or_1d, _validate_targets, _check_X_y, _check_array, _get_sample_weight, _check_is_fitted
 
 __all__ = ['_execute_with_dpc_or_host', '_column_or_1d', '_validate_targets',
-           '_check_X_y', '_check_array', '_get_sample_weight']
+           '_check_X_y', '_check_array', '_get_sample_weight', '_check_is_fitted']

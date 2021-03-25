@@ -90,7 +90,7 @@ inline dal::homogen_table _make_ht(PyArrayObject * array)
     assert(array_is_behaved(array));
     if (array_numdims(array) == 2)
     {
-        printf("[CPP]: _make_ht: array_numdims(array) == 2\n");
+        // printf("[CPP]: _make_ht: array_numdims(array) == 2\n");
         T * data_pointer          = reinterpret_cast<T *>(array_data(array));
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = static_cast<size_t>(array_size(array, 1));
@@ -98,12 +98,12 @@ inline dal::homogen_table _make_ht(PyArrayObject * array)
         // we need it increment the ref-count if we use the input array in-place
         // if we copied/converted it we already own our own reference
         if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
-        printf("[CPP]: _make_ht: finish\n");
+        // printf("[CPP]: _make_ht: finish\n");
         return res_table;
     }
     else if (array_numdims(array) == 1)
     {
-        printf("[CPP]: _make_ht: array_numdims(array) == 1\n");
+        // printf("[CPP]: _make_ht: array_numdims(array) == 1\n");
         T * data_pointer          = reinterpret_cast<T *>(array_data(array));
         const size_t row_count    = static_cast<size_t>(array_size(array, 0));
         const size_t column_count = 1;
@@ -132,7 +132,7 @@ dal::table _input_to_onedal_table(PyObject * obj)
     if (is_array(obj))
     { // we got a numpy array
         PyArrayObject * ary = (PyArrayObject *)obj;
-        printf("[CPP]: _input_to_onedal_table: is_array\n");
+        // printf("[CPP]: _input_to_onedal_table: is_array\n");
         if (array_is_behaved(ary))
         {
             switch (PyArray_DESCR(ary)->type)
@@ -147,7 +147,7 @@ dal::table _input_to_onedal_table(PyObject * obj)
             case NPY_CFLOATLTR: res = _make_ht<float>(ary); break;
             default: throw std::invalid_argument("Not avalible type in input_to_onedal_table.");
             }
-            printf("[CPP]: _input_to_onedal_table: finish\n");
+            // printf("[CPP]: _input_to_onedal_table: finish\n");
         }
         // throw std::invalid_argument("Could not convert Python object to onedal table.");
     }
@@ -195,7 +195,7 @@ static PyObject * _sp_to_nda(daal::services::SharedPtr<T> & sp, std::int64_t nr,
     PyObject * obj   = PyArray_SimpleNewFromData(2, dims, NPTYPE, static_cast<void *>(sp.get()));
     if (!obj) throw std::invalid_argument("conversion to numpy array failed");
     set_sp_base(reinterpret_cast<PyArrayObject *>(obj), sp);
-    printf("[_sp_to_nda] finish\n");
+    // printf("[_sp_to_nda] finish\n");
     return obj;
 }
 
@@ -229,7 +229,7 @@ PyObject * _table_to_numpy(const dal::table & input)
                 auto rows = dal::row_accessor<const float> { homogen_res }.pull();
                 rows.need_mutable_data();
                 auto daal_data = daal::services::SharedPtr<float>(rows.get_mutable_data(), daal_object_owner { rows });
-                printf("[_table_to_numpy float32]: _sp_to_nda\n");
+                // printf("[_table_to_numpy float32]: _sp_to_nda\n");
                 return _sp_to_nda<float, NPY_FLOAT32>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
             }
             case dal::data_type::float64:
@@ -237,7 +237,7 @@ PyObject * _table_to_numpy(const dal::table & input)
                 auto rows = dal::row_accessor<const double> { homogen_res }.pull();
                 rows.need_mutable_data();
                 auto daal_data = daal::services::SharedPtr<double>(rows.get_mutable_data(), daal_object_owner { rows });
-                printf("[_table_to_numpy float64]: _sp_to_nda\n");
+                // printf("[_table_to_numpy float64]: _sp_to_nda\n");
                 return _sp_to_nda<double, NPY_FLOAT64>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
             }
 

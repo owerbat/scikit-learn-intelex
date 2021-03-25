@@ -10,9 +10,11 @@ cimport numpy as npc
 
 from cpython.ref cimport PyObject
 from libcpp cimport bool
+import cython
 
 include "svm.pxi"
 
+@cython.auto_pickle(True)
 cdef class PySvmParams:
     cdef svm_params pt
 
@@ -67,6 +69,22 @@ cdef class PySvmParams:
     @sigma.setter
     def sigma(self,val):
         self.pt.sigma = val
+
+    @property
+    def shift(self):
+        return self.pt.shift
+
+    @shift.setter
+    def shift(self,val):
+        self.pt.shift = val
+
+    @property
+    def scale(self):
+        return self.pt.scale
+
+    @scale.setter
+    def scale(self,val):
+        self.pt.scale = val
 
 cdef class PyClassificationSvmTrain:
     cdef svm_train[classification] * thisptr

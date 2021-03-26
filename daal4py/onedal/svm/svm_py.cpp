@@ -30,9 +30,8 @@ KernelDescriptor get_kernel_params(const svm_params & params)
     }
     if constexpr (std::is_same_v<typename KernelDescriptor::tag_t, polynomial_kernel::detail::descriptor_tag>)
     {
-        return KernelDescriptor {}.set_scale(params.scale).set_shift(params.shift);
+        return KernelDescriptor {}.set_scale(params.scale).set_shift(params.shift).set_degree(params.degree);
     }
-
     return KernelDescriptor {};
 }
 

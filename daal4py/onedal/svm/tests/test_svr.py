@@ -16,8 +16,8 @@
 
 import pytest
 import numpy as np
-from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_allclose
-from sklearn import datasets, metrics
+from numpy.testing import assert_array_almost_equal, assert_allclose
+from sklearn import datasets
 from sklearn.metrics.pairwise import rbf_kernel
 
 from daal4py.onedal.svm import SVR
@@ -50,12 +50,12 @@ def test_estimator():
 
     md = sklearn.utils.estimator_checks
     saved = _replace_and_save(md, [
-        'check_sample_weights_invariance', # Max absolute difference: 0.00025665
+        'check_sample_weights_invariance',  # Max absolute difference: 0.0002
         'check_estimators_fit_returns_self',  # ???
-        'check_regressors_train',  # ValueError: Cannot get data type from empty metadata
+        'check_regressors_train',  # Cannot get data type from empty metadata
         'check_supervised_y_2d',  # need warning, why?
         'check_regressors_int',  # very bad accuracy
-        'check_estimators_unfitted',  # need exception from sklearn: NotFittedError
+        'check_estimators_unfitted',  # expected NotFittedError from sklearn
         'check_fit_idempotent',  # again run fit - error. need to fix
     ], dummy)
     check_estimator(SVR())
@@ -113,20 +113,86 @@ def test_predict():
     assert_array_almost_equal(dec.ravel(), reg.predict(X).ravel())
 
 
-def _test_fit_compare_with_sklearn(kernel):
+def _test_diabetes_compare_with_sklearn(kernel):
     diabetes = datasets.load_diabetes()
     clf = SVR(kernel=kernel, C=10.)
     clf.fit(diabetes.data, diabetes.target)
+    result = clf.score(diabetes.data, diabetes.target)
 
-    clf_sk = SklearnSVR(kernel=kernel, C=10.)
-    clf_sk.fit(diabetes.data, diabetes.target)
+    clf = SklearnSVR(kernel=kernel, C=10.)
+    clf.fit(diabetes.data, diabetes.target)
+    expected = clf.score(diabetes.data, diabetes.target)
 
-    assert_array_almost_equal(clf.intercept_, clf_sk.intercept_)
+    assert result > expected - 1e-2
 
 
 @pytest.mark.parametrize('kernel', ['linear', 'rbf', 'poly'])
-def test_fit_compare_with_sklearn(kernel):
-    _test_fit_compare_with_sklearn(kernel)
+def test_diabetes_compare_with_sklearn(kernel):
+    _test_diabetes_compare_with_sklearn(kernel)
+
+
+def _test_boston_rbf_compare_with_sklearn(C, gamma):
+    diabetes = datasets.load_boston()
+    clf = SVR(kernel='rbf', gamma=gamma, C=C)
+    clf.fit(diabetes.data, diabetes.target)
+    result = clf.score(diabetes.data, diabetes.target)
+
+    clf = SklearnSVR(kernel='rbf', gamma=gamma, C=C)
+    clf.fit(diabetes.data, diabetes.target)
+    expected = clf.score(diabetes.data, diabetes.target)
+
+    print(result, expected)
+    assert result > 0.4
+    assert result > expected - 1e-3
+
+
+@pytest.mark.parametrize('gamma', ['scale', 'auto'])
+@pytest.mark.parametrize('C', [100.0, 1000.0])
+def test_boston_rbf_compare_with_sklearn(C, gamma):
+    _test_boston_rbf_compare_with_sklearn(C, gamma)
+
+
+def _test_boston_linear_compare_with_sklearn(C):
+    diabetes = datasets.load_boston()
+    clf = SVR(kernel='linear', C=C)
+    clf.fit(diabetes.data, diabetes.target)
+    result = clf.score(diabetes.data, diabetes.target)
+
+    clf = SklearnSVR(kernel='linear', C=C)
+    clf.fit(diabetes.data, diabetes.target)
+    expected = clf.score(diabetes.data, diabetes.target)
+
+    print(result, expected)
+    assert result > 0.5
+    assert result > expected - 1e-2
+
+
+@pytest.mark.parametrize('C', [0.001, 0.1])
+def test_boston_linear_compare_with_sklearn(C):
+    _test_boston_linear_compare_with_sklearn(C)
+
+
+def _test_boston_poly_compare_with_sklearn(params):
+    diabetes = datasets.load_boston()
+    clf = SVR(kernel='poly', **params)
+    clf.fit(diabetes.data, diabetes.target)
+    result = clf.score(diabetes.data, diabetes.target)
+
+    clf = SklearnSVR(kernel='poly', **params)
+    clf.fit(diabetes.data, diabetes.target)
+    expected = clf.score(diabetes.data, diabetes.target)
+
+    print(result, expected)
+    assert result > 0.5
+    assert result > expected - 1e-2
+
+
+@pytest.mark.parametrize('params', [
+     {'degree': 2, 'coef0': 0.1, 'gamma': 'scale', 'C': 100},
+     {'degree': 3, 'coef0': 0.0, 'gamma': 'scale', 'C': 1000}
+])
+def test_boston_poly_compare_with_sklearn(params):
+    _test_boston_poly_compare_with_sklearn(params)
 
 
 def test_sided_sample_weight():

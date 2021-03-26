@@ -21,7 +21,14 @@ import numpy as np
 from scipy import sparse as sp
 from importlib import import_module
 from daal4py.onedal.common import _execute_with_dpc_or_host
-from daal4py.onedal.common import _validate_targets, _check_X_y, _check_array, _get_sample_weight, _check_is_fitted, _column_or_1d
+from daal4py.onedal.common import (
+    _validate_targets,
+    _check_X_y,
+    _check_array,
+    _get_sample_weight,
+    _check_is_fitted,
+    _column_or_1d
+)
 
 
 class BaseSVM(BaseEstimator, metaclass=ABCMeta):
@@ -84,13 +91,15 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         self._onedal_params = PySvmParams(self.algorithm, self.kernel)
         self._onedal_params.c = self.C
         self._onedal_params.epsilon = self.epsilon
-        self._onedal_params.class_count = 0 if self.classes_ is None else len(
-            self.classes_)
+        class_count = 0 if self.classes_ is None else len(self.classes_)
+        self._onedal_params.class_count = class_count
         self._onedal_params.accuracy_threshold = self.tol
-        self._onedal_params.scale, self._onedal_params.sigma = self._compute_gamma_sigma(
-            self.gamma, X)
+        self._onedal_params.scale, self._onedal_params.sigma = \
+            self._compute_gamma_sigma(self.gamma, X)
         self._onedal_params.shift = self.coef0
-        self._onedal_params.max_iteration_count = 1000 if self.max_iter == -1 else self.max_iter
+        self._onedal_params.degree = self.degree
+        max_iter = 1000 if self.max_iter == -1 else self.max_iter
+        self._onedal_params.max_iteration_count = max_iter
         self._onedal_params.tau = self.tau
 
         c_svm = Computer(self._onedal_params)
@@ -124,16 +133,22 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
 class SVR(RegressorMixin, BaseSVM):
     def __init__(self, C=1.0, epsilon=0.1, kernel='rbf', *, degree=3,
-                 gamma='scale', coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0,
-                 max_iter=-1, tau=1e-12, algorithm='thunder', **kwargs):
-        super().__init__(C=C, epsilon=epsilon, kernel=kernel, degree=degree, gamma=gamma,
-                         coef0=coef0, tol=tol, shrinking=shrinking, cache_size=cache_size,
+                 gamma='scale', coef0=0.0, tol=1e-3, shrinking=True,
+                 cache_size=200.0, max_iter=-1, tau=1e-12,
+                 algorithm='thunder', **kwargs):
+        super().__init__(C=C, epsilon=epsilon, kernel=kernel,
+                         degree=degree, gamma=gamma,
+                         coef0=coef0, tol=tol,
+                         shrinking=shrinking, cache_size=cache_size,
                          max_iter=max_iter, tau=tau, class_weight=None,
-                         decision_function_shape=None, break_ties=False, algorithm=algorithm)
+                         decision_function_shape=None,
+                         break_ties=False, algorithm=algorithm)
 
     @_execute_with_dpc_or_host("PyRegressionSvmTrain", "PySvmParams")
     def fit(self, X, y, sample_weight=None):
-        return super()._fit(X, y, sample_weight, getattr(import_module('_onedal4py_host'), 'PyRegressionSvmTrain'))
+        return super()._fit(X, y, sample_weight,
+                            getattr(import_module('_onedal4py_host'),
+                                    'PyRegressionSvmTrain'))
 
     @_execute_with_dpc_or_host("PyRegressionSvmInfer")
     def predict(self, X):
@@ -144,13 +159,16 @@ class SVR(RegressorMixin, BaseSVM):
 
 class SVC(ClassifierMixin, BaseSVM):
     def __init__(self, C=1.0, kernel='rbf', *, degree=3, gamma='scale',
-                 coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0, max_iter=-1,
-                 tau=1e-12, class_weight=None,  decision_function_shape='ovr',
-                 break_ties=False, algorithm='thunder', **kwargs):
-        super().__init__(C=C, epsilon=0.0, kernel=kernel, degree=degree, gamma=gamma,
-                         coef0=coef0, tol=tol, shrinking=shrinking, cache_size=cache_size,
+                 coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0,
+                 max_iter=-1, tau=1e-12, class_weight=None,
+                 decision_function_shape='ovr', break_ties=False,
+                 algorithm='thunder', **kwargs):
+        super().__init__(C=C, epsilon=0.0, kernel=kernel, degree=degree,
+                         gamma=gamma, coef0=coef0, tol=tol,
+                         shrinking=shrinking, cache_size=cache_size,
                          max_iter=max_iter, tau=tau, class_weight=class_weight,
-                         decision_function_shape=decision_function_shape, break_ties=break_ties, algorithm=algorithm)
+                         decision_function_shape=decision_function_shape,
+                         break_ties=break_ties, algorithm=algorithm)
 
     def _validate_targets(self, y, dtype):
         y, self.class_weight_, self.classes_ = _validate_targets(
@@ -159,7 +177,9 @@ class SVC(ClassifierMixin, BaseSVM):
 
     @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PySvmParams")
     def fit(self, X, y, sample_weight=None):
-        return super()._fit(X, y, sample_weight, getattr(import_module('_onedal4py_host'), 'PyClassificationSvmTrain'))
+        return super()._fit(X, y, sample_weight,
+                            getattr(import_module('_onedal4py_host'),
+                                    'PyClassificationSvmTrain'))
 
     @_execute_with_dpc_or_host("PyClassificationSvmInfer", "PySvmParams")
     def predict(self, X):

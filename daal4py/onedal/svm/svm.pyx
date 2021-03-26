@@ -94,6 +94,14 @@ cdef class PySvmParams:
     def scale(self,val):
         self.pt.scale = val
 
+    @property
+    def degree(self):
+        return self.pt.degree
+
+    @degree.setter
+    def degree(self,val):
+        self.pt.degree = val
+
 cdef class PyClassificationSvmTrain:
     cdef svm_train[classification] * thisptr
 

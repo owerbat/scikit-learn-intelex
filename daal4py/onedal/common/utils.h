@@ -40,10 +40,4 @@ private:
     PyThreadState * _save;
 };
 
-template <typename T, typename K>
-struct desc
-{
-    void compute() { std::cout << "compute" << std::endl; }
-};
-
 } // namespace oneapi::dal::python

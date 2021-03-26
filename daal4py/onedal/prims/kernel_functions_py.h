@@ -87,7 +87,7 @@ class polynomial_kernel_compute
 {
 public:
     // from descriptor
-    polynomial_kernel_compute(rbf_kernel_params * params);
+    polynomial_kernel_compute(polynomial_kernel_params * params);
 
     // attributes from compute_input
     void compute(PyObject * x, PyObject * y);

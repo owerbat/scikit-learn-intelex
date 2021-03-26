@@ -132,6 +132,10 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
 
 class SVR(RegressorMixin, BaseSVM):
+    """
+    Epsilon--Support Vector Regression.
+    """
+
     def __init__(self, C=1.0, epsilon=0.1, kernel='rbf', *, degree=3,
                  gamma='scale', coef0=0.0, tol=1e-3, shrinking=True,
                  cache_size=200.0, max_iter=-1, tau=1e-12,
@@ -158,6 +162,10 @@ class SVR(RegressorMixin, BaseSVM):
 
 
 class SVC(ClassifierMixin, BaseSVM):
+    """
+    C-Support Vector Classification.
+    """
+
     def __init__(self, C=1.0, kernel='rbf', *, degree=3, gamma='scale',
                  coef0=0.0, tol=1e-3, shrinking=True, cache_size=200.0,
                  max_iter=-1, tau=1e-12, class_weight=None,

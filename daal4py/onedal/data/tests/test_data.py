@@ -62,7 +62,7 @@ def test_input_format_f_contiguous_numpy(dtype):
     _test_input_format_f_contiguous_numpy(dtype)
 
 
-def _test_input_format_f_not_contiguous_numpy(dtype):
+def _test_input_format_c_not_contiguous_numpy(dtype):
     rng = np.random.RandomState(0)
     x_default = np.array(5 * rng.random_sample((10, 4)), dtype=dtype)
 
@@ -81,34 +81,45 @@ def _test_input_format_f_not_contiguous_numpy(dtype):
 
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
-def test_input_format_f_not_contiguous_numpy(dtype):
-    _test_input_format_f_not_contiguous_numpy(dtype)
+def test_input_format_c_not_contiguous_numpy(dtype):
+    _test_input_format_c_not_contiguous_numpy(dtype)
 
-    # f_contiguous_numpy = np.asanyarray(diabetes.data, dtype=dtype, order='F')
-    # assert not f_contiguous_numpy.flags.c_contiguous
-    # assert f_contiguous_numpy.flags.f_contiguous
-    # assert f_contiguous_numpy.flags.fnc
+def _test_input_format_c_contiguous_pandas(dtype):
+    pd = pytest.importorskip('pandas')
+    rng = np.random.RandomState(0)
+    x_default = np.array(5 * rng.random_sample((10, 4)), dtype=dtype)
 
-    # clf.fit(f_contiguous_numpy, diabetes.target)
-    # dual_f_contiguous_numpy = clf.dual_coef_
-    # res_f_contiguous_numpy = clf.predict(f_contiguous_numpy)
-    # assert_allclose(dual_c_contiguous_numpy, dual_f_contiguous_numpy)
-    # assert_allclose(res_c_contiguous_numpy, res_f_contiguous_numpy)
+    x_numpy = np.asanyarray(x_default, dtype=dtype, order='C')
+    assert x_numpy.flags.c_contiguous
+    assert not x_numpy.flags.f_contiguous
+    assert not x_numpy.flags.fnc
+    x_df = pd.DataFrame(x_numpy)
 
-    # dummy_data = np.insert(diabetes.data, range(
-    #     1, diabetes.data.shape[1]), 8, axis=1)
-    # c_not_contiguous_numpy = np.asanyarray(
-    #     dummy_data, dtype='float', order='C')
-    # c_not_contiguous_numpy = c_not_contiguous_numpy[:, ::2]
+    expected = linear_kernel(x_df)
+    result = linear_kernel(x_numpy)
+    assert_allclose(expected, result)
 
-    # assert_allclose(c_contiguous_numpy, c_not_contiguous_numpy)
 
-    # assert not c_not_contiguous_numpy.flags.c_contiguous
-    # assert not c_not_contiguous_numpy.flags.f_contiguous
-    # assert not c_not_contiguous_numpy.flags.fnc
+@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+def test_input_format_c_contiguous_pandas(dtype):
+    _test_input_format_c_contiguous_pandas(dtype)
 
-    # clf.fit(c_not_contiguous_numpy, diabetes.target)
-    # dual_c_not_contiguous_numpy = clf.dual_coef_
-    # res_c_not_contiguous_numpy = clf.predict(c_not_contiguous_numpy)
-    # assert_allclose(dual_c_contiguous_numpy, dual_c_not_contiguous_numpy)
-    # assert_allclose(res_c_contiguous_numpy, res_c_not_contiguous_numpy)
+def _test_input_format_f_contiguous_numpy(dtype):
+    pd = pytest.importorskip('pandas')
+    rng = np.random.RandomState(0)
+    x_default = np.array(5 * rng.random_sample((10, 4)), dtype=dtype)
+
+    x_numpy = np.asanyarray(x_default, dtype=dtype, order='F')
+    assert not x_numpy.flags.c_contiguous
+    assert x_numpy.flags.f_contiguous
+    assert x_numpy.flags.fnc
+    x_df = pd.DataFrame(x_numpy)
+
+    expected = linear_kernel(x_df)
+    result = linear_kernel(x_numpy)
+    assert_allclose(expected, result)
+
+
+@pytest.mark.parametrize('dtype', [np.float32, np.float64])
+def test_input_format_f_contiguous_numpy(dtype):
+    _test_input_format_f_contiguous_numpy(dtype)

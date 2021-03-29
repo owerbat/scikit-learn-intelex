@@ -20,7 +20,7 @@ from numpy.testing import assert_array_almost_equal, assert_allclose
 from sklearn import datasets
 from sklearn.metrics.pairwise import rbf_kernel
 
-from daal4py.onedal.svm import SVR
+from onedal.svm import SVR
 from sklearn.svm import SVR as SklearnSVR
 
 from sklearn.utils.estimator_checks import check_estimator

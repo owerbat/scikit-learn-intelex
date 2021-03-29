@@ -18,7 +18,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from sklearn import datasets, metrics
-from daal4py.onedal.prims import linear_kernel
+from onedal.prims import linear_kernel
 
 from sklearn.utils.estimator_checks import check_estimator
 import sklearn.utils.estimator_checks

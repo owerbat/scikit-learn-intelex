@@ -249,7 +249,7 @@ def get_type_defines():
 
 
 def get_build_options():
-    include_dir_plat = [os.path.abspath('./src'), os.path.abspath('./daal4py/onedal'), dal_root + '/include', ]
+    include_dir_plat = [os.path.abspath('./src'), os.path.abspath('./onedal'), dal_root + '/include', ]
     # FIXME it is a wrong place for this dependency
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
@@ -318,16 +318,17 @@ def getpyexts():
     import distutils.dir_util
     from distutils.file_util import copy_file
 
-    # copy_tree('daal4py/onedal', 'build/daal4py/onedal')
+    # copy_tree('onedal', 'build/onedal')
 
+    # TODO
     import re
     filter_rule = re.compile(r'.*')
     # filter_rule = re.compile(r'.*kernel_function.*')
 
 
-    cpp_files=glob.glob("daal4py/onedal/**/*.cpp")
-    pyx_files=glob.glob("daal4py/onedal/**/*.pyx")
-    pxi_files=glob.glob("daal4py/onedal/**/*.pxi")
+    cpp_files=glob.glob("onedal/**/**/*.cpp")
+    pyx_files=glob.glob("onedal/**/*.pyx")
+    pxi_files=glob.glob("onedal/**/*.pxi")
 
     cpp_files = [ s for s in cpp_files if filter_rule.match(s)]
     pyx_files = [ s for s in pyx_files if filter_rule.match(s)]
@@ -340,17 +341,17 @@ def getpyexts():
         copy_file(f, jp('build', f))
         # copy_file(f, jp('build', f + '_dpc.pyx'))
 
-    main_pyx = 'daal4py/onedal/onedal.pyx'
-    main_host_pyx = 'build/daal4py/onedal/onedal_host.pyx'
-    main_dpc_pyx = 'build/daal4py/onedal/onedal_dpc.pyx'
+    main_pyx = 'onedal/onedal.pyx'
+    main_host_pyx = 'build/onedal/onedal_host.pyx'
+    main_dpc_pyx = 'build/onedal/onedal_dpc.pyx'
     copy_file(main_pyx, main_host_pyx)
     copy_file(main_pyx, main_dpc_pyx)
 
     for f in pxi_files:
         copy_file(f, jp('build', f))
 
-    pyx_host_files=glob.glob("build/daal4py/onedal/**/*_host.pyx")
-    pyx_dpc_files=glob.glob("build/daal4py/onedal/**/*_dpc.pyx")
+    pyx_host_files=glob.glob("build/onedal/**/*_host.pyx")
+    pyx_dpc_files=glob.glob("build/onedal/**/*_dpc.pyx")
 
     print(pyx_host_files)
     print(pyx_dpc_files)
@@ -583,19 +584,22 @@ setup(  name             = "daal4py",
         # setup_requires = ['numpy>=1.14', 'cython', 'jinja2'],
         # install_requires = ['numpy>=1.14', 'daal', 'dpcpp_cpp_rt'],
         packages = ['daal4py',
-                    # 'daal4py.oneapi',
-                    # 'daal4py.sklearn',
-                    # 'daal4py.sklearn.cluster',
-                    # 'daal4py.sklearn.decomposition',
-                    # 'daal4py.sklearn.ensemble',
-                    # 'daal4py.sklearn.linear_model',
-                    # 'daal4py.sklearn.manifold',
-                    # 'daal4py.sklearn.metrics',
-                    # 'daal4py.sklearn.neighbors',
-                    # 'daal4py.sklearn.monkeypatch',
-                    # 'daal4py.sklearn.svm',
-                    # 'daal4py.sklearn.utils',
-                    # 'daal4py.sklearn.model_selection',
+                    'daal4py.oneapi',
+                    'daal4py.sklearn',
+                    'daal4py.sklearn.cluster',
+                    'daal4py.sklearn.decomposition',
+                    'daal4py.sklearn.ensemble',
+                    'daal4py.sklearn.linear_model',
+                    'daal4py.sklearn.manifold',
+                    'daal4py.sklearn.metrics',
+                    'daal4py.sklearn.neighbors',
+                    'daal4py.sklearn.monkeypatch',
+                    'daal4py.sklearn.svm',
+                    'daal4py.sklearn.utils',
+                    'daal4py.sklearn.model_selection',
+                    'onedal',
+                    'onedal.svm',
+                    'onedal.prims',
         ],
         ext_modules = getpyexts()
 )

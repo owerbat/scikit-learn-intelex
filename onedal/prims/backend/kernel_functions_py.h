@@ -21,7 +21,7 @@
 #include "oneapi/dal/algo/linear_kernel.hpp"
 #include "oneapi/dal/algo/rbf_kernel.hpp"
 #include "oneapi/dal/algo/polynomial_kernel.hpp"
-#include "data/data.h"
+#include "data/backend/data.h"
 
 namespace oneapi::dal::python
 {

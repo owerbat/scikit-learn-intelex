@@ -18,7 +18,7 @@
 #include <cstdint>
 #include <cstring>
 #include <Python.h>
-#include "data.h"
+#include "data/backend/data.h"
 
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -218,6 +218,7 @@ PyObject * _table_to_numpy(const dal::table & input)
             case dal::data_type::float32:
             {
                 auto rows = dal::row_accessor<const float> { homogen_res }.pull();
+                // need_mutable_data - copy potencial?
                 rows.need_mutable_data();
                 auto daal_data = daal::services::SharedPtr<float>(rows.get_mutable_data(), daal_object_owner { rows });
                 // printf("[_table_to_numpy float32]: _sp_to_nda\n");
@@ -226,6 +227,7 @@ PyObject * _table_to_numpy(const dal::table & input)
             case dal::data_type::float64:
             {
                 auto rows = dal::row_accessor<const double> { homogen_res }.pull();
+
                 rows.need_mutable_data();
                 auto daal_data = daal::services::SharedPtr<double>(rows.get_mutable_data(), daal_object_owner { rows });
                 // printf("[_table_to_numpy float64]: _sp_to_nda\n");

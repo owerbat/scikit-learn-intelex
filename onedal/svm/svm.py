@@ -20,8 +20,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 from scipy import sparse as sp
 from importlib import import_module
-from daal4py.onedal.common import _execute_with_dpc_or_host
-from daal4py.onedal.common import (
+from onedal.common import (
     _validate_targets,
     _check_X_y,
     _check_array,
@@ -30,6 +29,21 @@ from daal4py.onedal.common import (
     _column_or_1d
 )
 
+# TODO
+try:
+    import _onedal4py_dpc
+    _onedal4py = _onedal4py_dpc
+except ImportError as e:
+    import _onedal4py_host
+    _onedal4py = _onedal4py_host
+
+from _onedal4py_host import (
+    PySvmParams,
+    PyRegressionSvmTrain,
+    PyRegressionSvmInfer,
+    PyClassificationSvmTrain,
+    PyClassificationSvmInfer
+)
 
 class BaseSVM(BaseEstimator, metaclass=ABCMeta):
     @abstractmethod
@@ -93,7 +107,6 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         sample_weight = _get_sample_weight(
             X, y, sample_weight, self.class_weight_, self.classes_)
 
-        PySvmParams = getattr(import_module('_onedal4py_host'), 'PySvmParams')
         self._onedal_params = PySvmParams(self.algorithm, self.kernel)
         self._onedal_params.c = self.C
         self._onedal_params.epsilon = self.epsilon
@@ -113,9 +126,6 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
         self.dual_coef_ = c_svm.get_coeffs().T
         self.support_vectors_ = c_svm.get_support_vectors()
-
-        print("n_sv: ", self.support_vectors_.shape[0])
-
         self.intercept_ = c_svm.get_biases().ravel()
         self.support_ = c_svm.get_support_indices().ravel()
         self.n_features_in_ = X.shape[1]
@@ -157,16 +167,11 @@ class SVR(RegressorMixin, BaseSVM):
                          decision_function_shape=None,
                          break_ties=False, algorithm=algorithm)
 
-    @_execute_with_dpc_or_host("PyRegressionSvmTrain", "PySvmParams")
     def fit(self, X, y, sample_weight=None):
-        return super()._fit(X, y, sample_weight,
-                            getattr(import_module('_onedal4py_host'),
-                                    'PyRegressionSvmTrain'))
+        return super()._fit(X, y, sample_weight, PyRegressionSvmTrain)
 
-    @_execute_with_dpc_or_host("PyRegressionSvmInfer")
     def predict(self, X):
-        y = super()._predict(X, getattr(import_module(
-            '_onedal4py_host'), 'PyRegressionSvmInfer'))
+        y = super()._predict(X, PyRegressionSvmInfer)
         return y.ravel()
 
 
@@ -192,23 +197,17 @@ class SVC(ClassifierMixin, BaseSVM):
             y, self.class_weight, dtype)
         return y
 
-    @_execute_with_dpc_or_host("PyClassificationSvmTrain", "PySvmParams")
     def fit(self, X, y, sample_weight=None):
-        return super()._fit(X, y, sample_weight,
-                            getattr(import_module('_onedal4py_host'),
-                                    'PyClassificationSvmTrain'))
+        return super()._fit(X, y, sample_weight, PyClassificationSvmTrain)
 
-    @_execute_with_dpc_or_host("PyClassificationSvmInfer", "PySvmParams")
     def predict(self, X):
-        y = super()._predict(X, getattr(import_module(
-            '_onedal4py_host'), 'PyClassificationSvmInfer'))
+        y = super()._predict(X, PyClassificationSvmInfer)
         if len(self.classes_) == 2:
             y = y.ravel()
         return self.classes_.take(np.asarray(y, dtype=np.intp))
 
     def decision_function(self, X):
         _check_is_fitted(self)
-        from _onedal4py_host import PyClassificationSvmInfer
         X = _check_array(
             X, dtype=[np.float64, np.float32], force_all_finite=True)
         c_svm = PyClassificationSvmInfer(self._onedal_params)

@@ -15,12 +15,19 @@
 # ===============================================================================
 
 import numpy as np
-from daal4py.onedal.common import _check_array
+from onedal.common import _check_array
+
+# TODO
+from _onedal4py_host import (
+    PyLinearKernelParams,
+    PyLinearKernelCompute,
+    PyRbfKernelParams,
+    PyRbfKernelCompute,
+    PyPolyKernelParams,
+    PyPolyKernelCompute,
+)
 
 def linear_kernel(X, Y=None, scale=1.0, shift=0.0):
-    # TODO
-    from _onedal4py_host import PyLinearKernelParams, PyLinearKernelCompute
-
     X = _check_array(X, dtype=[np.float64, np.float32], force_all_finite=False)
     if Y is None:
         Y = X
@@ -53,8 +60,6 @@ def rbf_kernel(X, Y=None, gamma=None):
     -------
     kernel_matrix : ndarray of shape (n_samples_X, n_samples_Y)
     """
-    from _onedal4py_host import PyRbfKernelParams, PyRbfKernelCompute
-
     X = _check_array(X, dtype=[np.float64, np.float32], force_all_finite=False)
     if Y is None:
         Y = X
@@ -71,9 +76,6 @@ def rbf_kernel(X, Y=None, gamma=None):
     return c_kernel.get_values()
 
 def poly_kernel(X, Y=None, gamma=1.0, coef0=0.0, degree=3):
-    # TODO
-    from _onedal4py_host import PyPolyKernelParams, PyPolyKernelCompute
-
     X = _check_array(X, dtype=[np.float64, np.float32], force_all_finite=False)
     if Y is None:
         Y = X

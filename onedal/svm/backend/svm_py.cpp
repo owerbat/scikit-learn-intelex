@@ -14,11 +14,10 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "svm/svm_py.h"
-#include "common/utils.h"
-#include "common/train.h"
-#include "common/infer.h"
-#include <chrono>
+#include "svm/backend/svm_py.h"
+#include "common/backend/utils.h"
+#include "common/backend/train.h"
+#include "common/backend/infer.h"
 
 namespace oneapi::dal::python
 {
@@ -154,11 +153,7 @@ void svm_train<Task>::train(PyObject * data, PyObject * labels, PyObject * weigh
     auto labels_table  = _input_to_onedal_table(labels);
     auto weights_table = _input_to_onedal_table(weights);
     auto data_type     = data_table.get_metadata().get_data_type(0);
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    train_result_                               = compute_impl<decltype(train_result_)>(params_, data_type, data_table, labels_table, weights_table);
-    std::chrono::steady_clock::time_point end   = std::chrono::steady_clock::now();
-    std::cout << "[CPP] Time train = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    train_result_      = compute_impl<decltype(train_result_)>(params_, data_type, data_table, labels_table, weights_table);
 }
 
 // attributes from train_result
@@ -217,12 +212,7 @@ void svm_infer<Task>::infer(PyObject * data, PyObject * support_vectors, PyObjec
     {
         model.set_first_class_label(0).set_second_class_label(1);
     }
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    infer_result_                               = compute_impl<decltype(infer_result_)>(params_, data_type, model, data_table);
-    std::chrono::steady_clock::time_point end   = std::chrono::steady_clock::now();
-
-    std::cout << "[CPP] Time infer = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    infer_result_ = compute_impl<decltype(infer_result_)>(params_, data_type, model, data_table);
 }
 
 // attributes from infer_result

@@ -1,7 +1,7 @@
 
 from libcpp.string cimport string
 
-cdef extern from "data/utils.h":
+cdef extern from "data/backend/utils.h":
     cdef string to_std_string(PyObject * o) except +
 
 cdef extern from "oneapi/dal/algo/svm.hpp" namespace "oneapi::dal::svm::task":
@@ -10,7 +10,7 @@ cdef extern from "oneapi/dal/algo/svm.hpp" namespace "oneapi::dal::svm::task":
     cdef cppclass regression:
         pass
 
-cdef extern from "svm/svm_py.h" namespace "oneapi::dal::python":
+cdef extern from "svm/backend/svm_py.h" namespace "oneapi::dal::python":
     ctypedef struct svm_params:
         string method
         string kernel

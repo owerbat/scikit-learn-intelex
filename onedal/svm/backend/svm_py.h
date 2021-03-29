@@ -19,7 +19,7 @@
 #define NO_IMPORT_ARRAY
 
 #include "oneapi/dal/algo/svm.hpp"
-#include "data/data.h"
+#include "data/backend/data.h"
 
 namespace oneapi::dal::python
 {

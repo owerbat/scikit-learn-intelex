@@ -17,7 +17,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
-from daal4py.onedal.prims import linear_kernel, rbf_kernel, poly_kernel
+from onedal.prims import linear_kernel, rbf_kernel, poly_kernel
 from sklearn.metrics.pairwise import rbf_kernel as sklearn_rbf_kernel
 
 

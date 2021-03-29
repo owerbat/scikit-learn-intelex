@@ -14,9 +14,9 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "prims/kernel_functions_py.h"
-#include "common/utils.h"
-#include "common/compute.h"
+#include "prims/backend/kernel_functions_py.h"
+#include "common/backend/utils.h"
+#include "common/backend/compute.h"
 
 namespace oneapi::dal::python
 {

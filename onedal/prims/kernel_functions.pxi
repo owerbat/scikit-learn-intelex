@@ -1,6 +1,6 @@
 
 
-cdef extern from "prims/kernel_functions_py.h" namespace "oneapi::dal::python":
+cdef extern from "prims/backend/kernel_functions_py.h" namespace "oneapi::dal::python":
     ctypedef struct linear_kernel_params:
         double scale
         double shift

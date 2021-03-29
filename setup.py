@@ -254,7 +254,8 @@ def get_build_options():
     if not no_dist:
         include_dir_plat.append(mpi_root + '/include')
     using_intel = os.environ.get('cc', '') in ['icc', 'icpc', 'icl', 'dpcpp']
-    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1', '-g', '-O0']
+    eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1']
+    # eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="' + d4p_version + '"', '-DNPY_ALLOW_THREADS=1', '-g', '-O0']
     # eca = ['-DPY_ARRAY_UNIQUE_SYMBOL=daal4py_array_API', '-DD4P_VERSION="'+d4p_version+'"', '-DNPY_ALLOW_THREADS=1'] + get_type_defines()
     ela = []
 

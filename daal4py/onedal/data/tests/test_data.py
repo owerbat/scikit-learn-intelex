@@ -104,7 +104,7 @@ def _test_input_format_c_contiguous_pandas(dtype):
 def test_input_format_c_contiguous_pandas(dtype):
     _test_input_format_c_contiguous_pandas(dtype)
 
-def _test_input_format_f_contiguous_numpy(dtype):
+def _test_input_format_f_contiguous_pandas(dtype):
     pd = pytest.importorskip('pandas')
     rng = np.random.RandomState(0)
     x_default = np.array(5 * rng.random_sample((10, 4)), dtype=dtype)
@@ -121,5 +121,5 @@ def _test_input_format_f_contiguous_numpy(dtype):
 
 
 @pytest.mark.parametrize('dtype', [np.float32, np.float64])
-def test_input_format_f_contiguous_numpy(dtype):
-    _test_input_format_f_contiguous_numpy(dtype)
+def test_input_format_f_contiguous_pandas(dtype):
+    _test_input_format_f_contiguous_pandas(dtype)

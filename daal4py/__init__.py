@@ -24,7 +24,6 @@
 #         raise ImportError(s + '\n\nActivating your conda environment or sourcing mpivars.[c]sh/psxevars.[c]sh may solve the issue.\n')
 #     raise
 
-from .onedal.svm import SVC
 # import _onedal4py as sklearn_api
 
 # __all__ = [
@@ -45,3 +44,18 @@ except:
     warnings.warn('Unknown level "{}" for logging.\n'
                   'Please, use one of "CRITICAL", "ERROR", '
                   '"WARNING", "INFO", "DEBUG".'.format(logLevel))
+
+# try:
+#     from _daal4py import *
+#     from _daal4py import (
+#         _get__version__,
+#         _get__daal_link_version__,
+#         _get__daal_run_version__,
+#         __has_dist__)
+# except ImportError as e:
+#     s = str(e)
+#     if 'libfabric' in s:
+#         raise ImportError(
+#             s + '\n\nActivating your conda environment or sourcing mpivars.'
+#             '[c]sh/psxevars.[c]sh may solve the issue.\n')
+#     raise

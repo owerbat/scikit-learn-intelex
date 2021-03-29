@@ -18,6 +18,7 @@
 #include "common/utils.h"
 #include "common/train.h"
 #include "common/infer.h"
+#include <chrono>
 
 namespace oneapi::dal::python
 {
@@ -112,7 +113,7 @@ Result compute_impl(svm_params & params, data_type data_type_input, Args &&... a
         return compute_descriptor_impl<Result>(svm::descriptor<float, svm::method::thunder, Task, rbf_kernel::descriptor<float> > {}, params,
                                                std::forward<Args>(args)...);
     }
-    else if (data_type_input == data_type::float64 && params.method == "thunder" && params.kernel == "poly")
+    else if (data_type_input == data_type::float32 && params.method == "thunder" && params.kernel == "poly")
     {
         return compute_descriptor_impl<Result>(svm::descriptor<float, svm::method::thunder, Task, polynomial_kernel::descriptor<float> > {}, params,
                                                std::forward<Args>(args)...);
@@ -154,7 +155,10 @@ void svm_train<Task>::train(PyObject * data, PyObject * labels, PyObject * weigh
     auto weights_table = _input_to_onedal_table(weights);
     auto data_type     = data_table.get_metadata().get_data_type(0);
 
-    train_result_ = compute_impl<decltype(train_result_)>(params_, data_type, data_table, labels_table, weights_table);
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    train_result_                               = compute_impl<decltype(train_result_)>(params_, data_type, data_table, labels_table, weights_table);
+    std::chrono::steady_clock::time_point end   = std::chrono::steady_clock::now();
+    std::cout << "[CPP] Time train = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 }
 
 // attributes from train_result
@@ -214,7 +218,11 @@ void svm_infer<Task>::infer(PyObject * data, PyObject * support_vectors, PyObjec
         model.set_first_class_label(0).set_second_class_label(1);
     }
 
-    infer_result_ = compute_impl<decltype(infer_result_)>(params_, data_type, model, data_table);
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    infer_result_                               = compute_impl<decltype(infer_result_)>(params_, data_type, model, data_table);
+    std::chrono::steady_clock::time_point end   = std::chrono::steady_clock::now();
+
+    std::cout << "[CPP] Time infer = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 }
 
 // attributes from infer_result

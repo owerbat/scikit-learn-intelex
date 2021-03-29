@@ -62,6 +62,19 @@ def test_estimator():
     _restore_from_saved(md, saved)
 
 
+def test_run_to_run_fit():
+    diabetes = datasets.load_diabetes()
+    clf_first = SVR(kernel='linear', C=10.)
+    clf_first.fit(diabetes.data, diabetes.target)
+
+    for _ in range(10):
+        clf = SVR(kernel='linear', C=10.)
+        clf.fit(diabetes.data, diabetes.target)
+        assert_allclose(clf_first.intercept_, clf.intercept_)
+        assert_allclose(clf_first.support_vectors_, clf.support_vectors_)
+        assert_allclose(clf_first.dual_coef_, clf.dual_coef_)
+
+
 def test_diabetes_simple():
     diabetes = datasets.load_diabetes()
     clf = SVR(kernel='linear', C=10.)
@@ -117,13 +130,20 @@ def _test_diabetes_compare_with_sklearn(kernel):
     diabetes = datasets.load_diabetes()
     clf = SVR(kernel=kernel, C=10.)
     clf.fit(diabetes.data, diabetes.target)
+    print(clf.intercept_)
+    print(clf.dual_coef_.shape)
+
     result = clf.score(diabetes.data, diabetes.target)
 
     clf = SklearnSVR(kernel=kernel, C=10.)
     clf.fit(diabetes.data, diabetes.target)
+    print(clf.intercept_)
+    print(clf.dual_coef_.shape)
+
     expected = clf.score(diabetes.data, diabetes.target)
 
-    assert result > expected - 1e-2
+    print(result, expected)
+    assert result > expected
 
 
 @pytest.mark.parametrize('kernel', ['linear', 'rbf', 'poly'])

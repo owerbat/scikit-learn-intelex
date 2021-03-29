@@ -55,15 +55,21 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         self.algorithm = algorithm
 
     def _compute_gamma_sigma(self, gamma, X):
-        if gamma == 'scale':
-            if sp.isspmatrix(X):
-                # var = E[X^2] - E[X]^2
-                X_sc = (X.multiply(X)).mean() - (X.mean())**2
+        if isinstance(gamma, str):
+            if gamma == 'scale':
+                if sp.isspmatrix(X):
+                    # var = E[X^2] - E[X]^2
+                    X_sc = (X.multiply(X)).mean() - (X.mean())**2
+                else:
+                    X_sc = X.var()
+                _gamma = 1.0 / (X.shape[1] * X_sc) if X_sc != 0 else 1.0
+            elif gamma == 'auto':
+                _gamma = 1.0 / X.shape[1]
             else:
-                X_sc = X.var()
-            _gamma = 1.0 / (X.shape[1] * X_sc) if X_sc != 0 else 1.0
-        elif gamma == 'auto':
-            _gamma = 1.0 / X.shape[1]
+                raise ValueError(
+                    "When 'gamma' is a string, it should be either 'scale' or "
+                    "'auto'. Got '{}' instead.".format(gamma)
+                )
         else:
             _gamma = gamma
         return _gamma, np.sqrt(0.5 / _gamma)
@@ -98,7 +104,7 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
             self._compute_gamma_sigma(self.gamma, X)
         self._onedal_params.shift = self.coef0
         self._onedal_params.degree = self.degree
-        max_iter = 1000 if self.max_iter == -1 else self.max_iter
+        max_iter = 10000 if self.max_iter == -1 else self.max_iter
         self._onedal_params.max_iteration_count = max_iter
         self._onedal_params.tau = self.tau
 
@@ -107,6 +113,9 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
         self.dual_coef_ = c_svm.get_coeffs().T
         self.support_vectors_ = c_svm.get_support_vectors()
+
+        print("n_sv: ", self.support_vectors_.shape[0])
+
         self.intercept_ = c_svm.get_biases().ravel()
         self.support_ = c_svm.get_support_indices().ravel()
         self.n_features_in_ = X.shape[1]

@@ -34,6 +34,13 @@ auto rbf_compute_descriptor_impl(Descriptor descriptor, const rbf_kernel_params 
     return python::compute(descriptor, std::forward<Args>(args)...);
 }
 
+template <typename Descriptor, typename... Args>
+auto polynomial_compute_descriptor_impl(Descriptor descriptor, const polynomial_kernel_params & params, Args &&... args)
+{
+    descriptor.set_scale(params.scale).set_shift(params.shift).set_degree(params.degree);
+    return python::compute(descriptor, std::forward<Args>(args)...);
+}
+
 template <typename... Args>
 linear_kernel::compute_result<> linear_compute_impl(linear_kernel_params & params, data_type data_type_input, Args &&... args)
 {
@@ -57,6 +64,19 @@ rbf_kernel::compute_result<> rbf_compute_impl(rbf_kernel_params & params, data_t
     else
     {
         return rbf_compute_descriptor_impl(rbf_kernel::descriptor<double> {}, params, std::forward<Args>(args)...);
+    }
+}
+
+template <typename... Args>
+polynomial_kernel::compute_result<> polynomial_compute_impl(polynomial_kernel_params & params, data_type data_type_input, Args &&... args)
+{
+    if (data_type_input == data_type::float32)
+    {
+        return polynomial_compute_descriptor_impl(polynomial_kernel::descriptor<float> {}, params, std::forward<Args>(args)...);
+    }
+    else
+    {
+        return polynomial_compute_descriptor_impl(polynomial_kernel::descriptor<double> {}, params, std::forward<Args>(args)...);
     }
 }
 
@@ -93,6 +113,24 @@ void rbf_kernel_compute::compute(PyObject * x, PyObject * y)
 
 // attributes from compute_result
 PyObject * rbf_kernel_compute::get_values()
+{
+    return _table_to_numpy(compute_result_.get_values());
+}
+
+polynomial_kernel_compute::polynomial_kernel_compute(polynomial_kernel_params * params) : params_(*params) {}
+
+// attributes from compute_input
+void polynomial_kernel_compute::compute(PyObject * x, PyObject * y)
+{
+    thread_allow _allow;
+    auto x_table    = _input_to_onedal_table(x);
+    auto y_table    = _input_to_onedal_table(y);
+    auto data_type  = x_table.get_metadata().get_data_type(0);
+    compute_result_ = polynomial_compute_impl(params_, data_type, x_table, y_table);
+}
+
+// attributes from compute_result
+PyObject * polynomial_kernel_compute::get_values()
 {
     return _table_to_numpy(compute_result_.get_values());
 }

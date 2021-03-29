@@ -70,15 +70,18 @@ def rbf_kernel(X, Y=None, gamma=None):
     c_kernel.compute(X, Y)
     return c_kernel.get_values()
 
-def poly_kernel(X, Y, scale=1.0, shift=0.0, degree=3):
+def poly_kernel(X, Y=None, gamma=1.0, coef0=0.0, degree=3):
     # TODO
-    from _onedal4py_host import PyLinearKernelParams, PyLinearKernelCompute
+    from _onedal4py_host import PyPolyKernelParams, PyPolyKernelCompute
 
     X = _check_array(X, dtype=[np.float64, np.float32], force_all_finite=False)
-    Y = _check_array(Y, dtype=[np.float64, np.float32], force_all_finite=False)
+    if Y is None:
+        Y = X
+    else:
+        Y = _check_array(Y, dtype=[np.float64, np.float32], force_all_finite=False)
 
-    _onedal_params = PyLinearKernelParams(scale=scale, shift=shift, degree=degree)
-    c_kernel = PyLinearKernelCompute(_onedal_params)
+    _onedal_params = PyPolyKernelParams(scale=gamma, shift=coef0, degree=degree)
+    c_kernel = PyPolyKernelCompute(_onedal_params)
     c_kernel.compute(X, Y)
     return c_kernel.get_values()
 

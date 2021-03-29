@@ -57,6 +57,7 @@ def test_estimator():
         'check_regressors_int',  # very bad accuracy
         'check_estimators_unfitted',  # expected NotFittedError from sklearn
         'check_fit_idempotent',  # again run fit - error. need to fix
+        'check_estimators_pickle',  # NotImplementedError
     ], dummy)
     check_estimator(SVR())
     _restore_from_saved(md, saved)

@@ -191,6 +191,13 @@ PyObject * svm_train<Task>::get_biases()
     return _table_to_numpy(train_result_.get_biases());
 }
 
+// attributes from train_result
+template <typename Task>
+svm::model<Task> svm_train<Task>::get_model()
+{
+    return train_result_.get_model();
+}
+
 // from descriptor
 template <typename Task>
 svm_infer<Task>::svm_infer(svm_params * params) : params_(*params)
@@ -213,6 +220,16 @@ void svm_infer<Task>::infer(PyObject * data, PyObject * support_vectors, PyObjec
         model.set_first_class_label(0).set_second_class_label(1);
     }
     infer_result_ = compute_impl<decltype(infer_result_)>(params_, data_type, model, data_table);
+}
+
+// attributes from infer_input.hpp expect model
+template <typename Task>
+void svm_infer<Task>::infer(PyObject * data, svm::model<Task> * model)
+{
+    thread_allow _allow;
+    auto data_table = _input_to_onedal_table(data);
+    auto data_type  = data_table.get_metadata().get_data_type(0);
+    infer_result_   = compute_impl<decltype(infer_result_)>(params_, data_type, *model, data_table);
 }
 
 // attributes from infer_result

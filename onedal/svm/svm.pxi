@@ -10,6 +10,11 @@ cdef extern from "oneapi/dal/algo/svm.hpp" namespace "oneapi::dal::svm::task":
     cdef cppclass regression:
         pass
 
+
+cdef extern from "oneapi/dal/algo/svm.hpp" namespace "oneapi::dal::svm":
+    cdef cppclass model[task_t]:
+        pass
+
 cdef extern from "svm/backend/svm_py.h" namespace "oneapi::dal::python":
     ctypedef struct svm_params:
         string method
@@ -35,10 +40,12 @@ cdef extern from "svm/backend/svm_py.h" namespace "oneapi::dal::python":
         PyObject * get_support_indices() except +
         PyObject * get_coeffs() except +
         PyObject * get_biases() except +
+        model[task_t] get_model() except +
 
     cdef cppclass svm_infer[task_t]:
         svm_infer(svm_params *) except +
         void infer(PyObject * data, PyObject * support_vectors, PyObject * coeffs, PyObject * biases) except +
+        void infer(PyObject * data, model[task_t] * model) except +
         PyObject * get_labels() except +
         PyObject * get_decision_function() except +
 

@@ -43,17 +43,34 @@ def _restore_from_saved(md, saved_dict):
         setattr(md, check_f, saved_dict[check_f])
 
 
-# def test_estimator():
-#     def dummy(*args, **kwargs):
-#         pass
+def test_estimator():
+    def dummy(*args, **kwargs):
+        pass
 
-#     md = sklearn.utils.estimator_checks
-#     saved = _replace_and_save(md, [
-#         'check_estimators_dtypes', # segfolt!
-#         'check_fit_score_takes_y', # segfolt!
-#     ], dummy)
-#     check_estimator(SVC())
-#     _restore_from_saved(md, saved)
+    md = sklearn.utils.estimator_checks
+    saved = _replace_and_save(md, [
+        'check_estimators_dtypes',  # segfolt!
+        'check_fit_score_takes_y',  # segfolt!
+        'check_sample_weights_list',  # segfolt!
+        'check_sample_weights_invariance',  # Max absolute difference: 0.0008
+        'check_estimators_fit_returns_self',  # segfolt!
+        'check_dtype_object',  # segfolt!
+        'check_estimators_overwrite_params',  # segfolt!
+        'check_estimators_pickle',  # NotImplementedError
+        'check_classifiers_predictions',  # Cannot cast ufunc 'multiply'
+        'check_classifiers_train',  # segfolt!
+        'check_classifiers_regression_target',  # segfolt!
+        'check_supervised_y_2d',  # segfolt!
+        'check_estimators_unfitted',  # Call 'fit' with appropriate arguments
+        'check_class_weight_classifiers',  # Number of rows in numeric table is incorrect
+        'check_methods_sample_order_invariance',  # segfolt!
+        'check_methods_subset_invariance',  # segfolt!
+        'check_dont_overwrite_parameters',  # segfolt!
+        'check_fit2d_predict1d',  # segfolt!
+    ], dummy)
+    check_estimator(SVC())
+    _restore_from_saved(md, saved)
+
 
 def _test_libsvm_parameters(array_constr, dtype):
     X = array_constr([[-2, -1], [-1, -1], [-1, -2],
@@ -91,6 +108,7 @@ def test_sample_weight():
     clf.fit(X, y, sample_weight=[1] * 6)
     assert_array_almost_equal(clf.intercept_, [0.0])
 
+
 def test_decision_function():
     X = [[-2, -1], [-1, -1], [-1, -2], [1, 1], [1, 2], [2, 1]]
     Y = [1, 1, 1, 2, 2, 2]
@@ -103,13 +121,8 @@ def test_decision_function():
     assert_array_almost_equal(dec.ravel(), clf.decision_function(X))
 
 
-# def _test_iris(kernel):
-#     iris = datasets.load_iris()
-#     clf = SVC(kernel=kernel).fit(iris.data, iris.target)
-#     assert clf.score(iris.data, iris.target) > 0.9
-#     assert_array_equal(clf.classes_, np.sort(clf.classes_))
-
-
-# @pytest.mark.parametrize('kernel', ['linear', 'rbf'])
-# def test_iris(kernel):
-#     _test_iris(kernel)
+def test_iris():
+    iris = datasets.load_iris()
+    clf = SVC(kernel='linear').fit(iris.data, iris.target)
+    assert clf.score(iris.data, iris.target) > 0.9
+    assert_array_equal(clf.classes_, np.sort(clf.classes_))

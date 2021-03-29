@@ -53,6 +53,9 @@ public:
     void train(PyObject * data, PyObject * labels, PyObject * weights);
 
     // attributes from train_result
+    svm::model<Task> get_model();
+
+    // attributes from train_result
     int get_support_vector_count();
 
     // attributes from train_result
@@ -79,6 +82,9 @@ class svm_infer
 public:
     // from descriptor
     svm_infer(svm_params * params);
+
+    // attributes from infer_input.hpp expect model
+    void infer(PyObject * data, svm::model<Task> * model);
 
     // attributes from infer_input.hpp expect model
     void infer(PyObject * data, PyObject * support_vectors, PyObject * coeffs, PyObject * biases);

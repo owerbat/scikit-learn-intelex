@@ -1,187 +1,174 @@
 
 # distutils: language = c++
-#cython: language_level=2
+# cython: language_level=2
 
 # Import the Python-level symbols of numpy
 
 # Import the C-level symbols of numpy
+import cython
+from libcpp cimport bool
+from cpython.ref cimport PyObject
 cimport numpy as npc
 
 
-from cpython.ref cimport PyObject
-from libcpp cimport bool
-import cython
-
 include "svm.pxi"
+
 
 @cython.auto_pickle(True)
 cdef class PySvmParams:
     cdef svm_params pt
 
-    def __init__(self, method, kernel):
-        self.pt.method = to_std_string(<PyObject *>method)
-        self.pt.kernel = to_std_string(<PyObject *>kernel)
+    def __init__(self, method, kernel, class_count, c,
+                 epsilon, accuracy_threshold, max_iteration_count,
+                 tau, sigma, shift, scale, degree):
+        self.pt.method = to_std_string( < PyObject * >method)
+        self.pt.kernel = to_std_string( < PyObject * >kernel)
+        self.pt.class_count = class_count
+        self.pt.c = c
+        self.pt.epsilon = epsilon
+        self.pt.accuracy_threshold = accuracy_threshold
+        self.pt.max_iteration_count = max_iteration_count
+        self.pt.tau = tau
+        self.pt.sigma = sigma
+        self.pt.shift = shift
+        self.pt.scale = scale
+        self.pt.degree = degree
 
-    @property
-    def class_count(self):
-        return self.pt.class_count
 
-    @class_count.setter
-    def class_count(self,val):
-        self.pt.class_count = val
+cdef class PyClassificationSvmModel:
+    cdef model[classification] * thisptr
 
-    @property
-    def c(self):
-        return self.pt.c
+    def __cinit__(self):
+        self.thisptr = new model[classification]()
 
-    @c.setter
-    def c(self,val):
-        self.pt.c = val
+    def __dealloc__(self):
+        del self.thisptr
 
-    @property
-    def epsilon(self):
-        return self.pt.epsilon
+    def __setstate__(self, state):
+        # TODO: need serialize of models on c++ side
+        # if isinstance(state, bytes):
+        #    self.thisptr = svm_model[svm_model[classification]](state)
+        # else:
+        raise NotImplementedError("serialize not avalible for onedal models")
 
-    @epsilon.setter
-    def epsilon(self,val):
-        self.pt.epsilon = val
+    def __getstate__(self):
+        raise NotImplementedError("serialize not avalible for onedal models")
 
-    @property
-    def accuracy_threshold(self):
-        return self.pt.accuracy_threshold
+cdef class PyRegressionSvmModel:
+    cdef model[regression] * thisptr
 
-    @accuracy_threshold.setter
-    def accuracy_threshold(self,val):
-        self.pt.accuracy_threshold = val
+    def __cinit__(self):
+        self.thisptr = new model[regression]()
 
-    @property
-    def max_iteration_count(self):
-        return self.pt.max_iteration_count
+    def __dealloc__(self):
+        del self.thisptr
 
-    @max_iteration_count.setter
-    def max_iteration_count(self,val):
-        self.pt.max_iteration_count = val
+    def __setstate__(self, state):
+        # TODO: need serialize of models on c++ side
+        # if isinstance(state, bytes):
+        #    self.thisptr = svm_model[svm_model[regression]](state)
+        # else:
+        raise NotImplementedError("serialize not avalible for onedal models")
 
-    @property
-    def tau(self):
-        return self.pt.tau
+    def __getstate__(self):
+        raise NotImplementedError("serialize not avalible for onedal models")
 
-    @tau.setter
-    def tau(self,val):
-        self.pt.tau = val
-
-    @property
-    def sigma(self):
-        return self.pt.sigma
-
-    @sigma.setter
-    def sigma(self,val):
-        self.pt.sigma = val
-
-    @property
-    def shift(self):
-        return self.pt.shift
-
-    @shift.setter
-    def shift(self,val):
-        self.pt.shift = val
-
-    @property
-    def scale(self):
-        return self.pt.scale
-
-    @scale.setter
-    def scale(self,val):
-        self.pt.scale = val
-
-    @property
-    def degree(self):
-        return self.pt.degree
-
-    @degree.setter
-    def degree(self,val):
-        self.pt.degree = val
 
 cdef class PyClassificationSvmTrain:
     cdef svm_train[classification] * thisptr
 
     def __cinit__(self, PySvmParams params):
-        self.thisptr = new svm_train[classification](&params.pt)
+        self.thisptr = new svm_train[classification](& params.pt)
 
     def __dealloc__(self):
         del self.thisptr
 
     def train(self, data, labels, weights):
-        self.thisptr.train(<PyObject *>data, <PyObject *>labels, <PyObject *>weights)
+        self.thisptr.train( < PyObject * >data, < PyObject * >labels, < PyObject * >weights)
 
     def get_support_vectors(self):
-        return <object>self.thisptr.get_support_vectors()
+        return < object > self.thisptr.get_support_vectors()
 
     def get_support_indices(self):
-        return <object>self.thisptr.get_support_indices()
+        return < object > self.thisptr.get_support_indices()
 
     def get_coeffs(self):
-        return <object>self.thisptr.get_coeffs()
+        return < object > self.thisptr.get_coeffs()
 
     def get_biases(self):
-        return <object>self.thisptr.get_biases()
+        return < object > self.thisptr.get_biases()
+
+    def get_model(self):
+        cdef PyClassificationSvmModel res = PyClassificationSvmModel.__new__(PyClassificationSvmModel)
+        res.thisptr[0] = self.thisptr.get_model()
+        return res
 
 
 cdef class PyClassificationSvmInfer:
     cdef svm_infer[classification] * thisptr
 
     def __cinit__(self, PySvmParams params):
-        self.thisptr = new svm_infer[classification](&params.pt)
+        self.thisptr = new svm_infer[classification](& params.pt)
 
     def __dealloc__(self):
         del self.thisptr
 
-    def infer(self, data, support_vectors, coeffs, biases):
-        self.thisptr.infer(<PyObject *>data, <PyObject *>support_vectors, <PyObject *>coeffs, <PyObject *>biases)
+    def infer(self, data, PyClassificationSvmModel model):
+        self.thisptr.infer( < PyObject * >data, model.thisptr)
+
+    def infer_builder(self, data, support_vectors, coeffs, biases):
+        self.thisptr.infer( < PyObject * >data, < PyObject * >support_vectors, < PyObject * >coeffs, < PyObject * >biases)
 
     def get_labels(self):
-        return <object>self.thisptr.get_labels()
+        return < object > self.thisptr.get_labels()
 
     def get_decision_function(self):
-        return <object>self.thisptr.get_decision_function()
+        return < object > self.thisptr.get_decision_function()
 
 cdef class PyRegressionSvmTrain:
     cdef svm_train[regression] * thisptr
 
     def __cinit__(self, PySvmParams params):
-        self.thisptr = new svm_train[regression](&params.pt)
+        self.thisptr = new svm_train[regression](& params.pt)
 
     def __dealloc__(self):
         del self.thisptr
 
     def train(self, data, labels, weights):
-        self.thisptr.train(<PyObject *>data, <PyObject *>labels, <PyObject *>weights)
+        self.thisptr.train( < PyObject * >data, < PyObject * >labels, < PyObject * >weights)
 
     def get_support_vectors(self):
-        return <object>self.thisptr.get_support_vectors()
+        return < object > self.thisptr.get_support_vectors()
 
     def get_support_indices(self):
-        return <object>self.thisptr.get_support_indices()
+        return < object > self.thisptr.get_support_indices()
 
     def get_coeffs(self):
-        return <object>self.thisptr.get_coeffs()
+        return < object > self.thisptr.get_coeffs()
 
     def get_biases(self):
-        return <object>self.thisptr.get_biases()
+        return < object > self.thisptr.get_biases()
+
+    def get_model(self):
+        cdef PyRegressionSvmModel res = PyRegressionSvmModel.__new__(PyRegressionSvmModel)
+        res.thisptr[0] = self.thisptr.get_model()
+        return res
 
 
 cdef class PyRegressionSvmInfer:
     cdef svm_infer[regression] * thisptr
 
     def __cinit__(self, PySvmParams params):
-        self.thisptr = new svm_infer[regression](&params.pt)
+        self.thisptr = new svm_infer[regression](& params.pt)
 
     def __dealloc__(self):
         del self.thisptr
 
-    def infer(self, data, support_vectors, coeffs, biases):
-        self.thisptr.infer(<PyObject *>data, <PyObject *>support_vectors, <PyObject *>coeffs, <PyObject *>biases)
+    def infer(self, data, PyRegressionSvmModel model):
+        self.thisptr.infer( < PyObject * >data, model.thisptr)
+
+    def infer_builder(self, data, support_vectors, coeffs, biases):
+        self.thisptr.infer( < PyObject * >data, < PyObject * >support_vectors, < PyObject * >coeffs, < PyObject * >biases)
 
     def get_labels(self):
-        return <object>self.thisptr.get_labels()
-
+        return < object > self.thisptr.get_labels()

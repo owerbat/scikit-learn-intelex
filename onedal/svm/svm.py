@@ -45,6 +45,7 @@ from _onedal4py_host import (
     PyClassificationSvmInfer
 )
 
+
 class BaseSVM(BaseEstimator, metaclass=ABCMeta):
     @abstractmethod
     def __init__(self, C, epsilon, kernel='rbf', *, degree, gamma,
@@ -107,19 +108,17 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         sample_weight = _get_sample_weight(
             X, y, sample_weight, self.class_weight_, self.classes_)
 
-        self._onedal_params = PySvmParams(self.algorithm, self.kernel)
-        self._onedal_params.c = self.C
-        self._onedal_params.epsilon = self.epsilon
         class_count = 0 if self.classes_ is None else len(self.classes_)
-        self._onedal_params.class_count = class_count
-        self._onedal_params.accuracy_threshold = self.tol
-        self._onedal_params.scale, self._onedal_params.sigma = \
-            self._compute_gamma_sigma(self.gamma, X)
-        self._onedal_params.shift = self.coef0
-        self._onedal_params.degree = self.degree
+        scale, sigma = self._compute_gamma_sigma(self.gamma, X)
         max_iter = 10000 if self.max_iter == -1 else self.max_iter
-        self._onedal_params.max_iteration_count = max_iter
-        self._onedal_params.tau = self.tau
+
+        self._onedal_params = PySvmParams(method=self.algorithm, kernel=self.kernel,
+                                          c=self.C, epsilon=self.epsilon,
+                                          class_count=class_count,
+                                          accuracy_threshold=self.tol,
+                                          max_iteration_count=max_iter, scale=scale,
+                                          sigma=sigma, shift=self.coef0,
+                                          degree=self.degree, tau=self.tau)
 
         c_svm = Computer(self._onedal_params)
         c_svm.train(X, y, sample_weight)
@@ -129,6 +128,8 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         self.intercept_ = c_svm.get_biases().ravel()
         self.support_ = c_svm.get_support_indices().ravel()
         self.n_features_in_ = X.shape[1]
+
+        self._onedal_model = c_svm.get_model()
         return self
 
     def _predict(self, X, Computer):
@@ -144,10 +145,26 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
             X = _check_array(
                 X, dtype=[np.float64, np.float32], force_all_finite=True)
             c_svm = Computer(self._onedal_params)
-            c_svm.infer(X, self.support_vectors_,
-                        self.dual_coef_.T, self.intercept_)
+
+            if self._onedal_model:
+                c_svm.infer(X, self._onedal_model)
+            else:
+                c_svm.infer_builder(X, self.support_vectors_,
+                                    self.dual_coef_.T, self.intercept_)
             y = c_svm.get_labels()
         return y
+
+    def _decision_function(self, X):
+        _check_is_fitted(self)
+        X = _check_array(
+            X, dtype=[np.float64, np.float32], force_all_finite=True)
+        c_svm = PyClassificationSvmInfer(self._onedal_params)
+        if self._onedal_model:
+            c_svm.infer(X, self._onedal_model)
+        else:
+            c_svm.infer_builder(X, self.support_vectors_,
+                                self.dual_coef_.T, self.intercept_)
+        return c_svm.get_decision_function().ravel()
 
 
 class SVR(RegressorMixin, BaseSVM):
@@ -207,10 +224,4 @@ class SVC(ClassifierMixin, BaseSVM):
         return self.classes_.take(np.asarray(y, dtype=np.intp))
 
     def decision_function(self, X):
-        _check_is_fitted(self)
-        X = _check_array(
-            X, dtype=[np.float64, np.float32], force_all_finite=True)
-        c_svm = PyClassificationSvmInfer(self._onedal_params)
-        c_svm.infer(X, self.support_vectors_,
-                    self.dual_coef_.T, self.intercept_)
-        return c_svm.get_decision_function().ravel()
+        return super()._decision_function(X)

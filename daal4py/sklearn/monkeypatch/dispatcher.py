@@ -114,10 +114,10 @@ def _get_map_of_algorithms():
     return mapping
 
 
-def do_patch(name):
+def do_patch(name, get_map=_get_map_of_algorithms):
     lname = name.lower()
-    if lname in _get_map_of_algorithms():
-        for descriptor in _get_map_of_algorithms()[lname]:
+    if lname in get_map():
+        for descriptor in get_map()[lname]:
             which, what, replacer = descriptor[0]
             if descriptor[1] is None:
                 descriptor[1] = getattr(which, what, None)
@@ -126,10 +126,10 @@ def do_patch(name):
         raise ValueError("Has no patch for: " + name)
 
 
-def do_unpatch(name):
+def do_unpatch(name, get_map=_get_map_of_algorithms):
     lname = name.lower()
-    if lname in _get_map_of_algorithms():
-        for descriptor in _get_map_of_algorithms()[lname]:
+    if lname in get_map():
+        for descriptor in get_map()[lname]:
             if descriptor[1] is not None:
                 which, what, replacer = descriptor[0]
                 setattr(which, what, descriptor[1])
@@ -137,15 +137,15 @@ def do_unpatch(name):
         raise ValueError("Has no patch for: " + name)
 
 
-def enable(name=None, verbose=True, deprecation=True):
+def enable(name=None, verbose=True, deprecation=True, get_map=_get_map_of_algorithms):
     if LooseVersion(sklearn_version) < LooseVersion("0.21.0"):
         raise NotImplementedError(
             "daal4py patches apply for scikit-learn >= 0.21.0 only ...")
     if name is not None:
-        do_patch(name)
+        do_patch(name, get_map)
     else:
-        for key in _get_map_of_algorithms():
-            do_patch(key)
+        for key in get_map():
+            do_patch(key, get_map)
     if deprecation:
         set_idp_sklearn_verbose()
         warnings.warn_explicit("\nScikit-learn patching with daal4py is deprecated "
@@ -171,13 +171,13 @@ def enable(name=None, verbose=True, deprecation=True):
             "(https://github.com/intel/scikit-learn-intelex)\n")
 
 
-def disable(name=None):
+def disable(name=None, get_map=_get_map_of_algorithms):
     if name is not None:
-        do_unpatch(name)
+        do_unpatch(name, get_map)
     else:
-        for key in _get_map_of_algorithms():
-            do_unpatch(key)
-        _get_map_of_algorithms.cache_clear()
+        for key in get_map():
+            do_unpatch(key, get_map)
+        get_map.cache_clear()
 
 
 def _patch_names():

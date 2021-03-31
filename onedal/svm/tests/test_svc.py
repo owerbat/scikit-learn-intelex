@@ -24,6 +24,8 @@ from sklearn.utils.estimator_checks import check_estimator
 import sklearn.utils.estimator_checks
 from sklearn import datasets, metrics
 from sklearn.metrics.pairwise import rbf_kernel
+from sklearn.datasets import make_classification, make_blobs
+from sklearn.model_selection import train_test_split
 
 
 def _replace_and_save(md, fns, replacing_fn):
@@ -49,24 +51,15 @@ def test_estimator():
 
     md = sklearn.utils.estimator_checks
     saved = _replace_and_save(md, [
-        'check_estimators_dtypes',  # segfolt!
-        'check_fit_score_takes_y',  # segfolt!
-        'check_sample_weights_list',  # segfolt!
         'check_sample_weights_invariance',  # Max absolute difference: 0.0008
-        'check_estimators_fit_returns_self',  # segfolt!
-        'check_dtype_object',  # segfolt!
-        'check_estimators_overwrite_params',  # segfolt!
+        'check_estimators_fit_returns_self',  # ValueError: empty metadata
         'check_estimators_pickle',  # NotImplementedError
         'check_classifiers_predictions',  # Cannot cast ufunc 'multiply'
-        'check_classifiers_train',  # segfolt!
-        'check_classifiers_regression_target',  # segfolt!
-        'check_supervised_y_2d',  # segfolt!
+        'check_classifiers_train',  # assert y_pred.shape == (n_samples,)
+        'check_classifiers_regression_target',  # Did not raise ValueError
+        'check_supervised_y_2d',  # expected 1 DataConversionWarning
         'check_estimators_unfitted',  # Call 'fit' with appropriate arguments
         'check_class_weight_classifiers',  # Number of rows in numeric table is incorrect
-        'check_methods_sample_order_invariance',  # segfolt!
-        'check_methods_subset_invariance',  # segfolt!
-        'check_dont_overwrite_parameters',  # segfolt!
-        'check_fit2d_predict1d',  # segfolt!
     ], dummy)
     check_estimator(SVC())
     _restore_from_saved(md, saved)
@@ -126,3 +119,17 @@ def test_iris():
     clf = SVC(kernel='linear').fit(iris.data, iris.target)
     assert clf.score(iris.data, iris.target) > 0.9
     assert_array_equal(clf.classes_, np.sort(clf.classes_))
+
+
+def test_decision_function_shape():
+    X, y = make_blobs(n_samples=80, centers=5, random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+    # check shape of ovo_decition_function=True
+    clf = SVC(kernel='linear',
+              decision_function_shape='ovo').fit(X_train, y_train)
+    dec = clf.decision_function(X_train)
+    assert dec.shape == (len(X_train), 10)
+
+    # with pytest.raises(ValueError, match="must be either 'ovr' or 'ovo'"):
+    #     SVC(decision_function_shape='bad').fit(X_train, y_train)

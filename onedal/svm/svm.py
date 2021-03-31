@@ -119,7 +119,6 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
                                           max_iteration_count=max_iter, scale=scale,
                                           sigma=sigma, shift=self.coef0,
                                           degree=self.degree, tau=self.tau)
-
         c_svm = Computer(self._onedal_params)
         c_svm.train(X, y, sample_weight)
 
@@ -164,7 +163,11 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         else:
             c_svm.infer_builder(X, self.support_vectors_,
                                 self.dual_coef_.T, self.intercept_)
-        return c_svm.get_decision_function().ravel()
+        decision_function = c_svm.get_decision_function()
+        if len(self.classes_) == 2:
+            return decision_function.ravel()
+        else:
+            return decision_function
 
 
 class SVR(RegressorMixin, BaseSVM):

@@ -229,7 +229,6 @@ def test_sided_sample_weight():
     y_pred = clf.predict([[-1., 1.]])
     assert y_pred > 1.5
 
-    # Failed
     sample_weight = [1] * 6
     clf.fit(X, Y, sample_weight=sample_weight)
     y_pred = clf.predict([[-1., 1.]])

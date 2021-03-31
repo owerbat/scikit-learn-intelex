@@ -129,22 +129,19 @@ def test_predict():
 
 def _test_diabetes_compare_with_sklearn(kernel):
     diabetes = datasets.load_diabetes()
-    clf = SVR(kernel=kernel, C=10.)
-    clf.fit(diabetes.data, diabetes.target)
-    print(clf.intercept_)
-    print(clf.dual_coef_.shape)
+    clf_onedal = SVR(kernel=kernel, C=10.)
+    clf_onedal.fit(diabetes.data, diabetes.target)
+    result = clf_onedal.score(diabetes.data, diabetes.target)
 
-    result = clf.score(diabetes.data, diabetes.target)
-
-    clf = SklearnSVR(kernel=kernel, C=10.)
-    clf.fit(diabetes.data, diabetes.target)
-    print(clf.intercept_)
-    print(clf.dual_coef_.shape)
-
-    expected = clf.score(diabetes.data, diabetes.target)
+    clf_sklearn = SklearnSVR(kernel=kernel, C=10.)
+    clf_sklearn.fit(diabetes.data, diabetes.target)
+    expected = clf_sklearn.score(diabetes.data, diabetes.target)
 
     print(result, expected)
-    assert result > expected
+    assert result > expected - 1e-5
+    assert_allclose(clf_sklearn.intercept_, clf_onedal.intercept_, atol=1e-4)
+    assert_allclose(clf_sklearn.support_vectors_.shape, clf_sklearn.support_vectors_.shape)
+    assert_allclose(clf_sklearn.dual_coef_, clf_onedal.dual_coef_, atol=1e-2)
 
 
 @pytest.mark.parametrize('kernel', ['linear', 'rbf', 'poly'])
@@ -164,7 +161,7 @@ def _test_boston_rbf_compare_with_sklearn(C, gamma):
 
     print(result, expected)
     assert result > 0.4
-    assert result > expected - 1e-3
+    assert result > expected - 1e-5
 
 
 @pytest.mark.parametrize('gamma', ['scale', 'auto'])
@@ -185,7 +182,7 @@ def _test_boston_linear_compare_with_sklearn(C):
 
     print(result, expected)
     assert result > 0.5
-    assert result > expected - 1e-2
+    assert result > expected - 1e-3
 
 
 @pytest.mark.parametrize('C', [0.001, 0.1])
@@ -205,7 +202,7 @@ def _test_boston_poly_compare_with_sklearn(params):
 
     print(result, expected)
     assert result > 0.5
-    assert result > expected - 1e-2
+    assert result > expected - 1e-5
 
 
 @pytest.mark.parametrize('params', [

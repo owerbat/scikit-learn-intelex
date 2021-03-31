@@ -104,7 +104,6 @@ inline dal::homogen_table _make_ht(PyArrayObject * array)
     // we need it increment the ref-count if we use the input array in-place
     // if we copied/converted it we already own our own reference
     if (reinterpret_cast<PyArrayObject *>(data_pointer) == array) Py_INCREF(array);
-    // printf("[CPP]: _make_ht: finish\n");
     return res_table;
 }
 
@@ -123,7 +122,6 @@ dal::table _input_to_onedal_table(PyObject * obj)
     if (is_array(obj))
     { // we got a numpy array
         PyArrayObject * ary = (PyArrayObject *)obj;
-        // printf("[CPP]: _input_to_onedal_table: is_array\n");
         if (array_is_behaved(ary) || array_is_behaved_F(ary))
         {
             switch (PyArray_DESCR(ary)->type)
@@ -131,18 +129,17 @@ dal::table _input_to_onedal_table(PyObject * obj)
             case NPY_DOUBLE:
             case NPY_CDOUBLE:
             case NPY_DOUBLELTR:
-            case NPY_CDOUBLELTR: res = _make_ht<double>(ary); break;
+            case NPY_CDOUBLELTR: return _make_ht<double>(ary);
             case NPY_FLOAT:
             case NPY_CFLOAT:
             case NPY_FLOATLTR:
-            case NPY_CFLOATLTR: res = _make_ht<float>(ary); break;
-            default: throw std::invalid_argument("Not avalible type in input_to_onedal_table.");
+            case NPY_CFLOATLTR: return _make_ht<float>(ary);
+            default: throw std::invalid_argument("[input_to_onedal_table] Not avalible numpy type.");
             }
-            // printf("[CPP]: _input_to_onedal_table: finish\n");
         }
-        // throw std::invalid_argument("Could not convert Python object to onedal table.");
+        throw std::invalid_argument("[_input_to_onedal_table] Numpy input Could not convert Python object to onedal table.");
     }
-    return res;
+    throw std::invalid_argument("[_input_to_onedal_table] Not avalible input format for convert Python object to onedal table.");
 }
 
 class VSP
@@ -186,7 +183,6 @@ static PyObject * _sp_to_nda(daal::services::SharedPtr<T> & sp, std::int64_t nr,
     PyObject * obj   = PyArray_SimpleNewFromData(2, dims, NPTYPE, static_cast<void *>(sp.get()));
     if (!obj) throw std::invalid_argument("conversion to numpy array failed");
     set_sp_base(reinterpret_cast<PyArrayObject *>(obj), sp);
-    // printf("[_sp_to_nda] finish\n");
     return obj;
 }
 
@@ -233,12 +229,23 @@ PyObject * _table_to_numpy(const dal::table & input)
                 // printf("[_table_to_numpy float64]: _sp_to_nda\n");
                 return _sp_to_nda<double, NPY_FLOAT64>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
             }
+                throw std::runtime_error("[_table_to_numpy] unknown result type a result table");
+                // case dal::data_type::int64:
+                // {
+                //     auto rows = dal::row_accessor<const std::inte64> { homogen_res }.pull();
+
+                //     rows.need_mutable_data();
+                //     auto daal_data = daal::services::SharedPtr<std::inte64>(rows.get_mutable_data(), daal_object_owner { rows });
+                //     // printf("[_table_to_numpy float64]: _sp_to_nda\n");
+                //     return _sp_to_nda<std::inte64, NPY_INT64>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
+                // }
 
                 // TODO: other types
                 // TODO. How own data without copy?
             }
         }
     }
+    throw std::runtime_error("[_table_to_numpy] not avalible to convert a numpy");
     return nullptr;
 }
 

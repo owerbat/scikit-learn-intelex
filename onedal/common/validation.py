@@ -33,15 +33,14 @@ def _column_or_1d(y):
 
 
 def _compute_class_weight(class_weight, classes, y):
-    dtype = y.dtype
     if set(y) - set(classes):
         raise ValueError("classes should include all valid labels that can "
                          "be in y")
     if class_weight is None or len(class_weight) == 0:
-        weight = np.ones(classes.shape[0], dtype=dtype, order='C')
+        weight = np.ones(classes.shape[0], dtype=np.float64, order='C')
     else:
         # user-defined dictionary
-        weight = np.ones(classes.shape[0], dtype=dtype, order='C')
+        weight = np.ones(classes.shape[0], dtype=np.float64, order='C')
         if not isinstance(class_weight, dict):
             raise ValueError("class_weight must be dict, 'balanced', or None,"
                              " got: %r" % class_weight)
@@ -59,14 +58,14 @@ def _compute_class_weight(class_weight, classes, y):
 def _validate_targets(y, class_weight, dtype):
     y_ = _column_or_1d(y)
     classes, y = np.unique(y_, return_inverse=True)
-    class_weight = _compute_class_weight(class_weight,
+    class_weight_res = _compute_class_weight(class_weight,
                                          classes=classes, y=y_)
     if len(classes) < 2:
         raise ValueError(
             "The number of classes has to be greater than one; got %d"
             " class" % len(classes))
 
-    return np.asarray(y, dtype=dtype, order='C'), class_weight, classes
+    return np.asarray(y, dtype=dtype, order='C'), class_weight_res, classes
 
 
 def _check_array(array, dtype="numeric", accept_sparse=False, order=None, copy=False, force_all_finite=True,
@@ -158,6 +157,10 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
     if class_weight is not None:
         for i, v in enumerate(class_weight):
             ww[y == i] *= v
+
+    if not ww.flags.c_contiguous and not ww.flags.f_contiguous:
+        ww = np.ascontiguousarray(ww, array.dtype)
+
     return ww
 
 

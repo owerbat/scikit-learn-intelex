@@ -14,6 +14,6 @@
 # limitations under the License.
 #===============================================================================
 
-from ._classes import SVR
+from ._classes import SVR, SVC
 
-__all__ = ['SVR']
+__all__ = ['SVR', 'SVC']

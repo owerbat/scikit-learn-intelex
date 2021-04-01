@@ -17,22 +17,24 @@
 
 # Classes for patching
 from .svm import SVR as SVR_sklearnex
+from .svm import SVC as SVC_sklearnex
 
 # Scikit-learn* modules
 import sklearn.svm as svm_module
 
 # Other imports
 from functools import lru_cache
-from daal4py.sklearn._utils import daal_check_version
+# from daal4py.sklearn._utils import daal_check_version
 
 
 @lru_cache(maxsize=None)
 def _get_map_of_algorithms_sklearnex():
-    mapping = {}
+    mapping = {'svr': [[(svm_module, 'SVR', SVR_sklearnex), None]],
+               'svc': [[(svm_module, 'SVC', SVC_sklearnex), None]],}
 
-    if daal_check_version((2021, 'P', 200)):
-        mapping['svr'] = \
-            [[(svm_module, 'SVR', SVR_sklearnex), None]]
+    # if daal_check_version((2021, 'P', 200)):
+    #     mapping['svr'] = \
+    #         [[(svm_module, 'SVR', SVR_sklearnex), None]]
 
     return mapping
 
@@ -40,12 +42,13 @@ def _get_map_of_algorithms_sklearnex():
 def patch_sklearn(name=None, verbose=True):
     from daal4py.sklearn import patch_sklearn as patch_sklearn_orig
     try:
-        patch_sklearn_orig(name, verbose, deprecation=False)
-        patch_sklearn_orig(name, verbose, deprecation=False,
-                           get_map=_get_map_of_algorithms_sklearnex)
+        patch_sklearn_orig(name, verbose, deprecation=False, d4p_only=False)
+        patch_sklearn_orig(name, verbose=False, deprecation=False,
+                           get_map=_get_map_of_algorithms_sklearnex, d4p_only=False)
     except Exception:
-        patch_sklearn_orig(name, verbose)
-        patch_sklearn_orig(name, verbose, get_map=_get_map_of_algorithms_sklearnex)
+        patch_sklearn_orig(name, verbose, d4p_only=False)
+        patch_sklearn_orig(name, verbose=False,
+                           get_map=_get_map_of_algorithms_sklearnex, d4p_only=False)
 
 
 def unpatch_sklearn(name=None):

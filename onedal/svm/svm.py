@@ -106,9 +106,9 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
         X, y = _check_X_y(
             X, y, dtype=[np.float64, np.float32], force_all_finite=True)
-        y = self._validate_targets(y, X.dtype)
+        y_ = self._validate_targets(y, X.dtype)
         sample_weight = _get_sample_weight(
-            X, y, sample_weight, self.class_weight_, self.classes_)
+            X, y_, sample_weight, self.class_weight_, self.classes_)
 
         class_count = 0 if self.classes_ is None else len(self.classes_)
         scale, sigma = self._compute_gamma_sigma(self.gamma, X)
@@ -122,13 +122,18 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
                                           sigma=sigma, shift=self.coef0,
                                           degree=self.degree, tau=self.tau)
         c_svm = Computer(self._onedal_params)
-        c_svm.train(X, y, sample_weight)
+        c_svm.train(X, y_, sample_weight)
 
         self.dual_coef_ = c_svm.get_coeffs().T
         self.support_vectors_ = c_svm.get_support_vectors()
         self.intercept_ = c_svm.get_biases().ravel()
-        self.support_ = c_svm.get_support_indices().ravel()
+        self.support_ = c_svm.get_support_indices().ravel().astype('int')
         self.n_features_in_ = X.shape[1]
+        self.shape_fit_ = X.shape
+
+        if getattr(self, 'classes_', None) is not None:
+            self._n_support = np.array([
+                np.sum(y[self.support_] == label) for label in self.classes_])
 
         self._onedal_model = c_svm.get_model()
         return self
@@ -157,14 +162,19 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
     def _decision_function(self, X):
         _check_is_fitted(self)
+        print('check_array')
         X = _check_array(
             X, dtype=[np.float64, np.float32], force_all_finite=True)
+        print('PyClassificationSvmInfer')
         c_svm = PyClassificationSvmInfer(self._onedal_params)
         if self._onedal_model:
+            print('infer')
             c_svm.infer(X, self._onedal_model)
         else:
+            print('infer_builder')
             c_svm.infer_builder(X, self.support_vectors_,
                                 self.dual_coef_.T, self.intercept_)
+        print('get_decision_function')
         decision_function = c_svm.get_decision_function()
         if len(self.classes_) == 2:
             return decision_function.ravel()

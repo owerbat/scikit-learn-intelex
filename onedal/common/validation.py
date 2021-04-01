@@ -38,6 +38,8 @@ def _compute_class_weight(class_weight, classes, y):
                          "be in y")
     if class_weight is None or len(class_weight) == 0:
         weight = np.ones(classes.shape[0], dtype=np.float64, order='C')
+    elif class_weight == 'balanced':
+        weight = None
     else:
         # user-defined dictionary
         weight = np.ones(classes.shape[0], dtype=np.float64, order='C')

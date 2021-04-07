@@ -16,10 +16,10 @@
 
 #pragma once
 
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
 
 #ifdef _DPCPP_
+    #include <CL/sycl.hpp>
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
 #endif

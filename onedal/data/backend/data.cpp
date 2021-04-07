@@ -14,11 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#define NO_IMPORT_ARRAY
 #include <cstdint>
 #include <cstring>
 #include <Python.h>
 #include "data/backend/data.h"
+#include "data/backend/utils.h"
 
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -28,8 +28,6 @@
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
 #endif
-
-#include "daal.h"
 
 namespace oneapi::dal::python
 {
@@ -42,21 +40,23 @@ namespace oneapi::dal::python
 #define array_data(a)         PyArray_DATA((PyArrayObject *)a)
 #define array_size(a, i)      PyArray_DIM((PyArrayObject *)a, i)
 
+#ifdef _DPCPP_
+int init_numpy()
+{
+    import_array();
+    return 0;
+}
+
+const static int numpy_initialized = init_numpy();
+#endif
+
 class NumpyDeleter
 {
 public:
     NumpyDeleter(PyArrayObject * a) : _ndarray(a) {}
 
-    void operator()(const void * ptr)
-    {
-        // We need to protect calls to python API
-        // Note: at termination time, even when no threads are running, this breaks without the protection
-        // PyGILState_STATE gstate = PyGILState_Ensure();
-        // assert((void *)array_data(_ndarray) == ptr);
-        // // Py_DECREF(_ndarray);
-        // PyGILState_Release(gstate);
-    }
-    // We don't want this to be copied
+    void operator()(const void * ptr) {}
+
     NumpyDeleter & operator=(const NumpyDeleter &) = delete;
 
 private:
@@ -72,7 +72,7 @@ inline dal::homogen_table create_homogen_table(const T * data_pointer, const std
     if (dpctl_queue != NULL)
     {
         cl::sycl::queue & sycl_queue = *reinterpret_cast<cl::sycl::queue *>(dpctl_queue);
-        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, layout);
+        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, sycl::vector_class<sycl::event> {}, layout);
     }
     else
     {
@@ -85,7 +85,7 @@ inline dal::homogen_table create_homogen_table(const T * data_pointer, const std
 }
 
 template <typename T>
-inline dal::homogen_table _make_ht(PyArrayObject * array)
+inline dal::homogen_table make_homogen(PyArrayObject * array)
 {
     size_t column_count = 1;
 
@@ -120,26 +120,24 @@ dal::table _input_to_onedal_table(PyObject * obj)
         return res;
     }
     if (is_array(obj))
-    { // we got a numpy array
-        PyArrayObject * ary = (PyArrayObject *)obj;
+    {
+        PyArrayObject * ary = reinterpret_cast<PyArrayObject *>(obj);
         if (array_is_behaved(ary) || array_is_behaved_F(ary))
         {
-            switch (PyArray_DESCR(ary)->type)
-            {
-            case NPY_DOUBLE:
-            case NPY_CDOUBLE:
-            case NPY_DOUBLELTR:
-            case NPY_CDOUBLELTR: return _make_ht<double>(ary);
-            case NPY_FLOAT:
-            case NPY_CFLOAT:
-            case NPY_FLOATLTR:
-            case NPY_CFLOATLTR: return _make_ht<float>(ary);
-            default: throw std::invalid_argument("[input_to_onedal_table] Not avalible numpy type.");
-            }
+#define MAKE_HOMOGEN_TABLE(CType) res = make_homogen<CType>(ary);
+            SET_NPY_FEATURE(PyArray_DESCR(ary)->type, MAKE_HOMOGEN_TABLE, throw std::invalid_argument("Found unsupported array type"));
+#undef MAKE_HOMOGEN_TABLE
         }
-        throw std::invalid_argument("[_input_to_onedal_table] Numpy input Could not convert Python object to onedal table.");
+        else
+        {
+            throw std::invalid_argument("[_input_to_onedal_table] Numpy input Could not convert Python object to onedal table.");
+        }
     }
-    throw std::invalid_argument("[_input_to_onedal_table] Not avalible input format for convert Python object to onedal table.");
+    else
+    {
+        throw std::invalid_argument("[_input_to_onedal_table] Not avalible input format for convert Python object to onedal table.");
+    }
+    return res;
 }
 
 class VSP
@@ -148,56 +146,42 @@ public:
     // we need a virtual destructor
     virtual ~VSP() {};
 };
+
 // typed virtual shared pointer, for simplicity we make it a oneDAL shared pointer
 template <typename T>
-class TVSP : public VSP, public daal::services::SharedPtr<T>
+class TVSP : public VSP, public dal::array<T>
 {
 public:
-    TVSP(const daal::services::SharedPtr<T> & org) : daal::services::SharedPtr<T>(org) {}
+    TVSP(const dal::array<T> & org) : dal::array<T>(org) {}
     virtual ~TVSP() {};
 };
 
-void daalsp_free_cap(PyObject * cap)
+void onedal_free_cap(PyObject * cap)
 {
-    VSP * sp = static_cast<VSP *>(PyCapsule_GetPointer(cap, NULL));
-    if (sp)
+    VSP * stored_array = static_cast<VSP *>(PyCapsule_GetPointer(cap, NULL));
+    if (stored_array)
     {
-        delete sp;
-        sp = NULL;
+        delete stored_array;
     }
 }
 
-template <typename T>
-void set_sp_base(PyArrayObject * ary, daal::services::SharedPtr<T> & sp)
+template <typename CType, int NpType>
+static PyObject * convert_array_to_numpy(dal::array<CType> & array, std::int64_t row_count, std::int64_t column_count)
 {
-    void * tmp_sp  = static_cast<void *>(new TVSP<T>(sp));
-    PyObject * cap = PyCapsule_New(tmp_sp, NULL, daalsp_free_cap);
-    PyArray_SetBaseObject(ary, cap);
-}
+    npy_intp dims[2] = { static_cast<npy_intp>(row_count), static_cast<npy_intp>(column_count) };
+    array.need_mutable_data();
+    PyObject * obj = PyArray_SimpleNewFromData(2, dims, NpType, static_cast<void *>(array.get_mutable_data()));
+    if (!obj) throw std::invalid_argument("Conversion to numpy array failed");
 
-// Uses a shared pointer to a raw array (T*) for creating a nd-array
-template <typename T, int NPTYPE>
-static PyObject * _sp_to_nda(daal::services::SharedPtr<T> & sp, std::int64_t nr, std::int64_t nc)
-{
-    npy_intp dims[2] = { static_cast<npy_intp>(nr), static_cast<npy_intp>(nc) };
-    PyObject * obj   = PyArray_SimpleNewFromData(2, dims, NPTYPE, static_cast<void *>(sp.get()));
-    if (!obj) throw std::invalid_argument("conversion to numpy array failed");
-    set_sp_base(reinterpret_cast<PyArrayObject *>(obj), sp);
+    void * opaque_value = static_cast<void *>(new TVSP<CType>(array));
+    PyObject * cap      = PyCapsule_New(opaque_value, NULL, onedal_free_cap);
+    PyArray_SetBaseObject(reinterpret_cast<PyArrayObject *>(obj), cap);
     return obj;
 }
 
-template <typename T>
-struct daal_object_owner
-{
-    explicit daal_object_owner(const T & obj) : obj_(obj) {}
-
-    void operator()(const void *) { obj_ = T {}; }
-
-    T obj_;
-};
-
 PyObject * _table_to_numpy(const dal::table & input)
 {
+    PyObject * res = nullptr;
     if (!input.has_data())
     {
         throw std::invalid_argument("Empty data");
@@ -207,46 +191,26 @@ PyObject * _table_to_numpy(const dal::table & input)
         const auto & homogen_res = static_cast<const dal::homogen_table &>(input);
         if (homogen_res.get_data_layout() == dal::data_layout::row_major)
         {
-            const auto & dtype = homogen_res.get_metadata().get_data_type(0);
+            const dal::data_type dtype = homogen_res.get_metadata().get_data_type(0);
 
-            switch (dtype)
-            {
-            case dal::data_type::float32:
-            {
-                auto rows = dal::row_accessor<const float> { homogen_res }.pull();
-                // need_mutable_data - copy potencial?
-                rows.need_mutable_data();
-                auto daal_data = daal::services::SharedPtr<float>(rows.get_mutable_data(), daal_object_owner { rows });
-                // printf("[_table_to_numpy float32]: _sp_to_nda\n");
-                return _sp_to_nda<float, NPY_FLOAT32>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
-            }
-            case dal::data_type::float64:
-            {
-                auto rows = dal::row_accessor<const double> { homogen_res }.pull();
-
-                rows.need_mutable_data();
-                auto daal_data = daal::services::SharedPtr<double>(rows.get_mutable_data(), daal_object_owner { rows });
-                // printf("[_table_to_numpy float64]: _sp_to_nda\n");
-                return _sp_to_nda<double, NPY_FLOAT64>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
-            }
-                throw std::runtime_error("[_table_to_numpy] unknown result type a result table");
-                // case dal::data_type::int64:
-                // {
-                //     auto rows = dal::row_accessor<const std::inte64> { homogen_res }.pull();
-
-                //     rows.need_mutable_data();
-                //     auto daal_data = daal::services::SharedPtr<std::inte64>(rows.get_mutable_data(), daal_object_owner { rows });
-                //     // printf("[_table_to_numpy float64]: _sp_to_nda\n");
-                //     return _sp_to_nda<std::inte64, NPY_INT64>(daal_data, homogen_res.get_row_count(), homogen_res.get_column_count());
-                // }
-
-                // TODO: other types
-                // TODO. How own data without copy?
-            }
+#define MAKE_NYMPY_FROM_HOMOGEN(CType, NpType)                                                                                \
+    {                                                                                                                         \
+        auto rows = dal::row_accessor<const CType> { homogen_res }.pull();                                                    \
+        res       = convert_array_to_numpy<CType, NpType>(rows, homogen_res.get_row_count(), homogen_res.get_column_count()); \
+    }
+            SET_CTYPE_NPY_FROM_DAL_TYPE(dtype, MAKE_NYMPY_FROM_HOMOGEN, throw std::invalid_argument("Not avalible to convert a numpy"));
+#undef MAKE_NYMPY_FROM_HOMOGEN
+        }
+        else
+        {
+            throw std::invalid_argument("oneDAL have don't table row major format");
         }
     }
-    throw std::runtime_error("[_table_to_numpy] not avalible to convert a numpy");
-    return nullptr;
+    else
+    {
+        throw std::invalid_argument("oneDAL table not homogen format have");
+    }
+    return res;
 }
 
 } // namespace oneapi::dal::python

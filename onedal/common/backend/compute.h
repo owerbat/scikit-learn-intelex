@@ -20,11 +20,10 @@
 #include <numpy/arrayobject.h>
 
 #ifdef _DPCPP_
+    #include <CL/sycl.hpp>
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
 #endif
-
-#include <unordered_map>
 
 namespace oneapi::dal::python
 {

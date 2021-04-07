@@ -20,70 +20,21 @@
     #define NOMINMAX
 #endif
 
+#ifndef _DPCPP_
+    #define NO_IMPORT_ARRAY
+#endif
+
 #include <iostream>
 #include <stdexcept>
 #include <vector>
 #include <limits>
 #include <string>
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include <numpy/arrayobject.h>
 
+#include <numpy/arrayobject.h>
 #include "oneapi/dal/table/common.hpp"
 
 namespace oneapi::dal::python
 {
-#if PY_VERSION_HEX < 0x03000000
-    #define PyUnicode_Check(_x)      PyString_Check(_x)
-    #define PyUnicode_AsUTF8(_x)     PyString_AsString(_x)
-    #define PyUnicode_FromString(_x) PyString_FromString(_x)
-#endif
-
-#define SET_NPY_FEATURE(_T, _M, _E)                                                                                      \
-    switch (_T)                                                                                                          \
-    {                                                                                                                    \
-    case NPY_DOUBLE:                                                                                                     \
-    case NPY_CDOUBLE:                                                                                                    \
-    case NPY_DOUBLELTR:                                                                                                  \
-    case NPY_CDOUBLELTR:                                                                                                 \
-    {                                                                                                                    \
-        _M(double);                                                                                                      \
-        break;                                                                                                           \
-    }                                                                                                                    \
-    case NPY_FLOAT:                                                                                                      \
-    case NPY_CFLOAT:                                                                                                     \
-    case NPY_FLOATLTR:                                                                                                   \
-    case NPY_CFLOATLTR:                                                                                                  \
-    {                                                                                                                    \
-        _M(float);                                                                                                       \
-        break;                                                                                                           \
-    }                                                                                                                    \
-    case NPY_INT:                                                                                                        \
-    case NPY_INTLTR:                                                                                                     \
-    {                                                                                                                    \
-        _M(int);                                                                                                         \
-        break;                                                                                                           \
-    }                                                                                                                    \
-    case NPY_UINT:                                                                                                       \
-    case NPY_UINTLTR:                                                                                                    \
-    {                                                                                                                    \
-        _M(unsigned int);                                                                                                \
-        break;                                                                                                           \
-    }                                                                                                                    \
-    case NPY_LONG:                                                                                                       \
-    case NPY_LONGLTR:                                                                                                    \
-    {                                                                                                                    \
-        _M(long);                                                                                                        \
-        break;                                                                                                           \
-    }                                                                                                                    \
-    case NPY_ULONG:                                                                                                      \
-    case NPY_ULONGLTR:                                                                                                   \
-    {                                                                                                                    \
-        _M(unsigned long);                                                                                               \
-        break;                                                                                                           \
-    }                                                                                                                    \
-    default: throw std::invalid_argument(std::string("Unsupported NPY type ") + std::to_string(_T) + " ignored\n."); _E; \
-    };
-
 oneapi::dal::table _input_to_onedal_table(PyObject * nda);
 
 PyObject * _table_to_numpy(const oneapi::dal::table & input);

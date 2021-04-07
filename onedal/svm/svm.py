@@ -29,21 +29,23 @@ from onedal.common import (
     _column_or_1d
 )
 
-# TODO
 try:
-    import _onedal4py_dpc
-    _onedal4py = _onedal4py_dpc
+    from _onedal4py_dpc import (
+        PySvmParams,
+        PyRegressionSvmTrain,
+        PyRegressionSvmInfer,
+        PyClassificationSvmTrain,
+        PyClassificationSvmInfer
+    )
+    raise ImportError
 except ImportError as e:
-    import _onedal4py_host
-    _onedal4py = _onedal4py_host
-
-from _onedal4py_host import (
-    PySvmParams,
-    PyRegressionSvmTrain,
-    PyRegressionSvmInfer,
-    PyClassificationSvmTrain,
-    PyClassificationSvmInfer
-)
+    from _onedal4py_host import (
+        PySvmParams,
+        PyRegressionSvmTrain,
+        PyRegressionSvmInfer,
+        PyClassificationSvmTrain,
+        PyClassificationSvmInfer
+    )
 
 
 class BaseSVM(BaseEstimator, metaclass=ABCMeta):

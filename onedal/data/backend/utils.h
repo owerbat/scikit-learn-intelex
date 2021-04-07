@@ -16,15 +16,83 @@
 
 #pragma once
 
-#define NO_IMPORT_ARRAY
-
 #ifdef _WIN32
     #define NOMINMAX
 #endif
 #include <string>
+#include <cinttypes>
+#include "oneapi/dal/common.hpp"
+
 #include <numpy/arrayobject.h>
 
 static std::string to_std_string(PyObject * o)
 {
     return PyUnicode_AsUTF8(o);
 }
+
+#define SET_NPY_FEATURE(_T, _FUNCT, _EXCEPTION) \
+    switch (_T)                                 \
+    {                                           \
+    case NPY_DOUBLE:                            \
+    case NPY_CDOUBLE:                           \
+    case NPY_DOUBLELTR:                         \
+    case NPY_CDOUBLELTR:                        \
+    {                                           \
+        _FUNCT(double);                         \
+        break;                                  \
+    }                                           \
+    case NPY_FLOAT:                             \
+    case NPY_CFLOAT:                            \
+    case NPY_FLOATLTR:                          \
+    case NPY_CFLOATLTR:                         \
+    {                                           \
+        _FUNCT(float);                          \
+        break;                                  \
+    }                                           \
+    case NPY_INT:                               \
+    case NPY_INTLTR:                            \
+    {                                           \
+        _FUNCT(int);                            \
+        break;                                  \
+    }                                           \
+    case NPY_UINT:                              \
+    case NPY_UINTLTR:                           \
+    {                                           \
+        _FUNCT(unsigned int);                   \
+        break;                                  \
+    }                                           \
+    case NPY_LONG:                              \
+    case NPY_LONGLTR:                           \
+    {                                           \
+        _FUNCT(long);                           \
+        break;                                  \
+    }                                           \
+    case NPY_ULONG:                             \
+    case NPY_ULONGLTR:                          \
+    {                                           \
+        _FUNCT(unsigned long);                  \
+        break;                                  \
+    }                                           \
+    default: _EXCEPTION;                        \
+    };
+
+#define SET_CTYPE_NPY_FROM_DAL_TYPE(_T, _FUNCT, _EXCEPTION) \
+    switch (_T)                                             \
+    {                                                       \
+    case dal::data_type::float32:                           \
+    {                                                       \
+        _FUNCT(float, NPY_FLOAT32);                         \
+        break;                                              \
+    }                                                       \
+    case dal::data_type::float64:                           \
+    {                                                       \
+        _FUNCT(double, NPY_FLOAT64);                        \
+        break;                                              \
+    }                                                       \
+    case dal::data_type::int32:                             \
+    {                                                       \
+        _FUNCT(std::int32_t, NPY_INT32);                    \
+        break;                                              \
+    }                                                       \
+    default: _EXCEPTION;                                    \
+    };

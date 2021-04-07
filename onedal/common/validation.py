@@ -59,7 +59,8 @@ def _validate_targets(y, class_weight, dtype):
     y_ = _column_or_1d(y)
     classes, y = np.unique(y_, return_inverse=True)
     class_weight_res = _compute_class_weight(class_weight,
-                                         classes=classes, y=y_)
+                                             classes=classes, y=y_)
+
     if len(classes) < 2:
         raise ValueError(
             "The number of classes has to be greater than one; got %d"
@@ -68,8 +69,8 @@ def _validate_targets(y, class_weight, dtype):
     return np.asarray(y, dtype=dtype, order='C'), class_weight_res, classes
 
 
-def _check_array(array, dtype="numeric", accept_sparse=False, order=None, copy=False, force_all_finite=True,
-                 ensure_2d=True):
+def _check_array(array, dtype="numeric", accept_sparse=False, order=None,
+                 copy=False, force_all_finite=True, ensure_2d=True):
     # TODO
     from sklearn.utils.validation import check_array
     array = check_array(array=array, dtype=dtype, accept_sparse=accept_sparse,
@@ -83,7 +84,8 @@ def _check_array(array, dtype="numeric", accept_sparse=False, order=None, copy=F
     return array
 
 
-def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=False, force_all_finite=True, ensure_2d=True):
+def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=False,
+               force_all_finite=True, ensure_2d=True):
     if y is None:
         raise ValueError("y cannot be None")
 
@@ -103,7 +105,7 @@ def _check_X_y(X, y, dtype="numeric", accept_sparse=False, order=None, copy=Fals
     uniques = np.unique(lengths)
     if len(uniques) > 1:
         raise ValueError("Found input variables with inconsistent numbers of"
-                         " samples: %r" % [int(l) for l in lengths])
+                         " samples: %r" % [int(length) for length in lengths])
 
     return X, y
 
@@ -159,7 +161,7 @@ def _get_sample_weight(X, y, sample_weight, class_weight, classes):
             ww[y == i] *= v
 
     if not ww.flags.c_contiguous and not ww.flags.f_contiguous:
-        ww = np.ascontiguousarray(ww, array.dtype)
+        ww = np.ascontiguousarray(ww, dtype)
 
     return ww
 
@@ -175,7 +177,7 @@ def _check_is_fitted(estimator, attributes=None, *, msg=None):
     if attributes is not None:
         if not isinstance(attributes, (list, tuple)):
             attributes = [attributes]
-        attrs = all_or_any([hasattr(estimator, attr) for attr in attributes])
+        attrs = all([hasattr(estimator, attr) for attr in attributes])
     else:
         attrs = [v for v in vars(estimator)
                  if v.endswith("_") and not v.startswith("__")]

@@ -93,7 +93,7 @@ def _test_dense_small_poly_kernel(gamma, coef0, degree, dtype):
     Y = np.array(2 * rng.random_sample((15, 4)), dtype=dtype)
 
     result = poly_kernel(X, Y, gamma=gamma, coef0=coef0, degree=degree)
-    expected = (gamma*np.dot(X, np.array(Y).T) + coef0) ** degree
+    expected = (gamma * np.dot(X, np.array(Y).T) + coef0) ** degree
 
     tol = 1e-14 if dtype == np.float64 else 1e-5
     assert_allclose(result, expected, rtol=tol)

@@ -1,4 +1,4 @@
-#===============================================================================
+# ===============================================================================
 # Copyright 2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,18 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#===============================================================================
-
-# daal4py SVM classification example for shared memory systems
+# ===============================================================================
 
 from daal4py.onedal.prims import linear_kernel
 import numpy as np
+
 
 def main():
     X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]], dtype=np.float32)
     Y = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]], dtype=np.float32)
     print("Result of linear kernel x and y:", linear_kernel(X, Y))
     pass
+
 
 if __name__ == "__main__":
     main()

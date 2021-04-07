@@ -140,7 +140,8 @@ def _test_diabetes_compare_with_sklearn(kernel):
     print(result, expected)
     assert result > expected - 1e-5
     assert_allclose(clf_sklearn.intercept_, clf_onedal.intercept_, atol=1e-4)
-    assert_allclose(clf_sklearn.support_vectors_.shape, clf_sklearn.support_vectors_.shape)
+    assert_allclose(clf_sklearn.support_vectors_.shape,
+                    clf_sklearn.support_vectors_.shape)
     assert_allclose(clf_sklearn.dual_coef_, clf_onedal.dual_coef_, atol=1e-2)
 
 
@@ -206,8 +207,8 @@ def _test_boston_poly_compare_with_sklearn(params):
 
 
 @pytest.mark.parametrize('params', [
-     {'degree': 2, 'coef0': 0.1, 'gamma': 'scale', 'C': 100},
-     {'degree': 3, 'coef0': 0.0, 'gamma': 'scale', 'C': 1000}
+    {'degree': 2, 'coef0': 0.1, 'gamma': 'scale', 'C': 100},
+    {'degree': 3, 'coef0': 0.0, 'gamma': 'scale', 'C': 1000}
 ])
 def test_boston_poly_compare_with_sklearn(params):
     _test_boston_poly_compare_with_sklearn(params)

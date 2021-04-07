@@ -38,8 +38,8 @@ try:
     _dpctrl_library_dir = str(os.path.abspath(os.path.join(dpctl.get_include(), "..")))
     _dpctrl_exists = "ON"
 except ImportError:
-    _dpctrl_include_dir = None
-    _dpctrl_library_dir = None
+    _dpctrl_include_dir = ""
+    _dpctrl_library_dir = ""
     _dpctrl_exists = "OFF"
 
 

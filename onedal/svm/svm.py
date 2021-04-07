@@ -38,7 +38,7 @@ try:
         PyClassificationSvmInfer
     )
     raise ImportError
-except ImportError as e:
+except ImportError:
     from _onedal4py_host import (
         PySvmParams,
         PyRegressionSvmTrain,
@@ -52,7 +52,7 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
     @abstractmethod
     def __init__(self, C, epsilon, kernel='rbf', *, degree, gamma,
                  coef0, tol, shrinking, cache_size, max_iter, tau,
-                 class_weight,  decision_function_shape,
+                 class_weight, decision_function_shape,
                  break_ties, algorithm, **kwargs):
 
         self.C = C

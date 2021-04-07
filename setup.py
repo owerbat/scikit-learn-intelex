@@ -307,7 +307,7 @@ def getpyexts():
 
     ext = Extension('_onedal4py_host',
                     sources=[main_host_pyx] + cpp_files,
-                    include_dirs=include_dir_plat + [np.get_include()],,
+                    include_dirs=include_dir_plat + [np.get_include()],
                     extra_compile_args=eca,
                     extra_link_args=ela,
                     define_macros=[

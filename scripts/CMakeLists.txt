@@ -96,7 +96,6 @@ target_include_directories(${TARGET}
 )
 
 target_compile_definitions(${TARGET}
-    PUBLIC "_DPCPP_"
     PUBLIC "ONEDAL_DATA_PARALLEL"
     PUBLIC "NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION"
 )

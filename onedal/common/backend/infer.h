@@ -18,7 +18,7 @@
 
 #include <numpy/arrayobject.h>
 
-#ifdef _DPCPP_
+#ifdef ONEDAL_DATA_PARALLEL
     #include <CL/sycl.hpp>
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
@@ -29,7 +29,7 @@ namespace oneapi::dal::python
 template <typename... Args>
 auto infer(Args &&... args)
 {
-#ifdef _DPCPP_
+#ifdef ONEDAL_DATA_PARALLEL
     auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
     if (dpctl_queue != NULL)
     {

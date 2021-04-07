@@ -23,8 +23,11 @@
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
-#ifdef _DPCPP_
+#ifdef ONEDAL_DATA_PARALLEL
     #include <CL/sycl.hpp>
+#endif
+
+#ifdef DPCTL_ENABLE
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
 #endif
@@ -40,7 +43,7 @@ namespace oneapi::dal::python
 #define array_data(a)         PyArray_DATA((PyArrayObject *)a)
 #define array_size(a, i)      PyArray_DIM((PyArrayObject *)a, i)
 
-#ifdef _DPCPP_
+#ifdef ONEDAL_DATA_PARALLEL
 int init_numpy()
 {
     import_array();
@@ -67,7 +70,7 @@ template <typename T, typename ConstDeleter>
 inline dal::homogen_table create_homogen_table(const T * data_pointer, const std::size_t row_count, const std::size_t column_count,
                                                const dal::data_layout layout, ConstDeleter && data_deleter)
 {
-#ifdef _DPCPP_
+#if defined(DPCTL_ENABLE)
     auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
     if (dpctl_queue != NULL)
     {
@@ -78,8 +81,10 @@ inline dal::homogen_table create_homogen_table(const T * data_pointer, const std
     {
         throw std::runtime_error("Cannot set daal context: Pointer to queue object is NULL");
     }
+#elif defined(ONEDAL_DATA_PARALLEL)
+    cl::sycl::queue sycl_queue = cl::sycl::host_selector();
+    return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, sycl::vector_class<sycl::event> {}, layout);
 #else
-
     return dal::homogen_table(data_pointer, row_count, column_count, data_deleter, layout);
 #endif
 }

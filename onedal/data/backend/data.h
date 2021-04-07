@@ -20,7 +20,7 @@
     #define NOMINMAX
 #endif
 
-#ifndef _DPCPP_
+#ifndef ONEDAL_DATA_PARALLEL
     #define NO_IMPORT_ARRAY
 #endif
 

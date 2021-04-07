@@ -42,7 +42,7 @@ and in [Intel channel](https://anaconda.org/intel/scikit-learn-intelex).
 
 ```bash
 # PyPi (recommended by default)
-pip install scikit-learn-intelex 
+pip install scikit-learn-intelex
 ```
 
 ```bash
@@ -117,19 +117,19 @@ Intel(R) Extension for Scikit-learn patching affects performance of specific Sci
 |:---|:------------|:-----------------|:-----------|
 |Classification|**SVC**|All parameters except `kernel` = 'poly' and 'sigmoid'. | No limitations.|
 ||**RandomForestClassifier**|All parameters except `warmstart` = True and `cpp_alpha` != 0, `criterion` != 'gini'. | Multi-output and sparse data is not supported. |
-||**KNeighborsClassifier**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` = 2. | Multi-output and sparse data is not supported. |
+||**KNeighborsClassifier**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` != 2. | Multi-output and sparse data is not supported. |
 ||**LogisticRegression / LogisticRegressionCV**|All parameters except `solver` != 'lbfgs' or 'newton-cg', `class_weight` != None, `sample_weight` != None. | Only dense data is supported. |
 |Regression|**RandomForestRegressor**|All parameters except `warmstart` = True and `cpp_alpha` != 0, `criterion` != 'mse'. | Multi-output and sparse data is not supported. |
-||**KNeighborsRegressor**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` = 2. | Sparse data is not supported. |
+||**KNeighborsRegressor**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` != 2. | Sparse data is not supported. |
 ||**LinearRegression**|All parameters except `normalize` != False and `sample_weight` != None. | Only dense data is supported, `#observations` should be >= `#features`. |
 ||**Ridge**|All parameters except `normalize` != False, `solver` != 'auto' and `sample_weight` != None. | Only dense data is supported, `#observations` should be >= `#features`. |
 ||**ElasticNet**|All parameters except `sample_weight` != None. | Multi-output and sparse data is not supported, `#observations` should be >= `#features`. |
 ||**Lasso**|All parameters except `sample_weight` != None. | Multi-output and sparse data is not supported, `#observations` should be >= `#features`. |
 |Clustering|**KMeans**|All parameters except `precompute_distances` and `sample_weight` != None. | No limitations. |
-||**DBSCAN**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` = 2. | Only dense data is supported. |
+||**DBSCAN**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` != 2, `algorithm` != `brute` or `auto` . | Only dense data is supported. |
 |Dimensionality reduction|**PCA**|All parameters except `svd_solver` != 'full'. | No limitations. |
-|| **TSNE**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` = 2. | Sparse data is not supported. |
-|Unsupervised|**NearestNeighbors**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` = 2. | Sparse data is not supported. |
+|| **TSNE**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` != 2. | Sparse data is not supported. |
+|Unsupervised|**NearestNeighbors**|All parameters except `metric` != 'euclidean' or `minkowski` with `p` != 2. | Sparse data is not supported. |
 |Other|**train_test_split**|All parameters are supported. | Only dense data is supported.|
 ||**assert_all_finite**|All parameters are supported. | Only dense data is supported. |
 ||**pairwise_distance**|With `metric`='cosine' and 'correlation'.| Only dense data is supported. |
@@ -147,7 +147,7 @@ To find out which implementation of the algorithm is currently used (Intel(R) Ex
 - On Windows: `set SKLEARNEX_VERBOSE=INFO`
 
 For example, for DBSCAN you get one of these print statements depending on which implementation is used:
-- `INFO: sklearn.cluster.DBSCAN.fit: uses Intel(R) oneAPI Data Analytics Library solver`
-- `INFO: sklearn.cluster.DBSCAN.fit: uses original Scikit-learn solver`
+- `SKLEARNEX INFO: sklearn.cluster.DBSCAN.fit: running accelerated version on CPU`
+- `SKLEARNEX INFO: sklearn.cluster.DBSCAN.fit: fallback to original Scikit-learn`
 
 [Read more in the documentation](https://intel.github.io/scikit-learn-intelex/).

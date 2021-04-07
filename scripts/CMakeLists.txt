@@ -26,12 +26,6 @@ else()
     set(DPCPPROOT $ENV{DPCPPROOT})
 endif()
 
-if(NOT DEFINED ENV{DPCTLROOT})
-    message(FATAL_ERROR "Not set DPCTLROOT env")
-else()
-    set(DPCTLROOT $ENV{DPCTLROOT})
-endif()
-
 if(WIN32)
     set(CMAKE_CXX_COMPILER "dpcpp")
     set(CMAKE_C_COMPILER "clang-cl")

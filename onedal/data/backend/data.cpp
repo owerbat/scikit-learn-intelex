@@ -70,23 +70,7 @@ template <typename T, typename ConstDeleter>
 inline dal::homogen_table create_homogen_table(const T * data_pointer, const std::size_t row_count, const std::size_t column_count,
                                                const dal::data_layout layout, ConstDeleter && data_deleter)
 {
-#if defined(DPCTL_ENABLE)
-    auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
-    if (dpctl_queue != NULL)
-    {
-        cl::sycl::queue & sycl_queue = *reinterpret_cast<cl::sycl::queue *>(dpctl_queue);
-        return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, sycl::vector_class<sycl::event> {}, layout);
-    }
-    else
-    {
-        throw std::runtime_error("Cannot set daal context: Pointer to queue object is NULL");
-    }
-#elif defined(ONEDAL_DATA_PARALLEL)
-    cl::sycl::queue sycl_queue = cl::sycl::host_selector();
-    return dal::homogen_table(sycl_queue, data_pointer, row_count, column_count, data_deleter, sycl::vector_class<sycl::event> {}, layout);
-#else
     return dal::homogen_table(data_pointer, row_count, column_count, data_deleter, layout);
-#endif
 }
 
 template <typename T>

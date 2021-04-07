@@ -320,20 +320,20 @@ def getpyexts():
 
     exts.extend(cythonize(ext))
 
-    ext = Extension('_daal4py',
-                    [os.path.abspath('src/daal4py.cpp'),
-                     os.path.abspath('build/daal4py_cpp.cpp'),
-                     os.path.abspath('build/daal4py_cy.pyx')]
-                    + DIST_CPPS,
-                    depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-                    include_dirs=include_dir_plat + [np.get_include()],
-                    extra_compile_args=eca,
-                    define_macros=get_daal_type_defines(),
-                    extra_link_args=ela,
-                    libraries=libraries_plat,
-                    library_dirs=ONEDAL_LIBDIRS,
-                    language='c++')
-    exts.extend(cythonize(ext))
+    # ext = Extension('_daal4py',
+    #                 [os.path.abspath('src/daal4py.cpp'),
+    #                  os.path.abspath('build/daal4py_cpp.cpp'),
+    #                  os.path.abspath('build/daal4py_cy.pyx')]
+    #                 + DIST_CPPS,
+    #                 depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+    #                 include_dirs=include_dir_plat + [np.get_include()],
+    #                 extra_compile_args=eca,
+    #                 define_macros=get_daal_type_defines(),
+    #                 extra_link_args=ela,
+    #                 libraries=libraries_plat,
+    #                 library_dirs=ONEDAL_LIBDIRS,
+    #                 language='c++')
+    # exts.extend(cythonize(ext))
 
     if dpcpp:
         if IS_LIN or IS_MAC:
@@ -365,17 +365,16 @@ def getpyexts():
         # exts.extend(cythonize(ext))
 
     if not no_dist:
+        mpi_include_dir = include_dir_plat + [np.get_include()] + MPI_INCDIRS
+        mpi_depens = glob.glob(jp(os.path.abspath('src'), '*.h'))
+        mpi_extra_link = ela + ["-Wl,-rpath,{}".format(x) for x in MPI_LIBDIRS]
         exts.append(Extension('mpi_transceiver',
                               MPI_CPPS,
-                              depends=glob.glob(
-                                  jp(os.path.abspath('src'), '*.h')),
-                              include_dirs=include_dir_plat +
-                              [np.get_include()] + MPI_INCDIRS,
+                              depends=mpi_depens,
+                              include_dirs=mpi_include_dir,
                               extra_compile_args=eca,
                               define_macros=get_daal_type_defines(),
-                              extra_link_args=ela +
-                              ["-Wl,-rpath,{}".format(x)
-                               for x in MPI_LIBDIRS],
+                              extra_link_args=mpi_extra_link,
                               libraries=libraries_plat + MPI_LIBS,
                               library_dirs=ONEDAL_LIBDIRS + MPI_LIBDIRS,
                               language='c++'))
@@ -411,7 +410,7 @@ def gen_pyx(odir):
                 no_dist=no_dist, no_stream=no_stream)
 
 
-gen_pyx(os.path.abspath('./build'))
+# gen_pyx(os.path.abspath('./build'))
 
 
 def distutils_dir_name(dname):
@@ -461,7 +460,8 @@ with open('requirements.txt') as f:
                 install_requires.remove(r)
                 break
 
-setup(name="daal4py",
+setup(
+    name="daal4py",
     description="A convenient Python API to Intel(R) oneAPI Data Analytics Library",
     author="Intel",
     version=d4p_version,
@@ -469,46 +469,47 @@ setup(name="daal4py",
     project_urls=project_urls,
     cmdclass={'install': install, 'develop': develop, 'build': build},
     classifiers=[
-      'Development Status :: 5 - Production/Stable',
-      'Environment :: Console',
-      'Intended Audience :: Developers',
-      'Intended Audience :: Other Audience',
-      'Intended Audience :: Science/Research',
-      'License :: OSI Approved :: Apache Software License',
-      'Operating System :: MacOS :: MacOS X',
-      'Operating System :: Microsoft :: Windows',
-      'Operating System :: POSIX :: Linux',
-      'Programming Language :: Python :: 3',
-      'Topic :: Scientific/Engineering',
-      'Topic :: System',
-      'Topic :: Software Development',
+        'Development Status :: 5 - Production/Stable',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Other Audience',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Apache Software License',
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX :: Linux',
+        'Programming Language :: Python :: 3',
+        'Topic :: Scientific/Engineering',
+        'Topic :: System',
+        'Topic :: Software Development',
     ],
     # setup_requires = ['numpy>=1.14', 'cython', 'jinja2'],
     # install_requires = ['numpy>=1.14', 'daal', 'dpcpp_cpp_rt'],
-    packages=['daal4py',
-            'daal4py.oneapi',
-            'daal4py.sklearn',
-            'daal4py.sklearn.cluster',
-            'daal4py.sklearn.decomposition',
-            'daal4py.sklearn.ensemble',
-            'daal4py.sklearn.linear_model',
-            'daal4py.sklearn.manifold',
-            'daal4py.sklearn.metrics',
-            'daal4py.sklearn.neighbors',
-            'daal4py.sklearn.monkeypatch',
-            'daal4py.sklearn.svm',
-            'daal4py.sklearn.utils',
-            'daal4py.sklearn.model_selection',
-            'onedal',
-            'onedal.svm',
-            'onedal.prims',
-            ],
+    packages=[
+        'daal4py',
+        'daal4py.oneapi',
+        'daal4py.sklearn',
+        'daal4py.sklearn.cluster',
+        'daal4py.sklearn.decomposition',
+        'daal4py.sklearn.ensemble',
+        'daal4py.sklearn.linear_model',
+        'daal4py.sklearn.manifold',
+        'daal4py.sklearn.metrics',
+        'daal4py.sklearn.neighbors',
+        'daal4py.sklearn.monkeypatch',
+        'daal4py.sklearn.svm',
+        'daal4py.sklearn.utils',
+        'daal4py.sklearn.model_selection',
+        'onedal',
+        'onedal.svm',
+        'onedal.prims',
+    ],
     package_data={
-      'onedal': [
-          'libdpc_backend.so',
-          'dpc_backend.lib',
-          'dpc_backend.dll'
-      ]
+        'onedal': [
+            'libdpc_backend.so',
+            'dpc_backend.lib',
+            'dpc_backend.dll'
+        ]
     },
     ext_modules=getpyexts()
 )

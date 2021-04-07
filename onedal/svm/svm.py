@@ -37,7 +37,7 @@ try:
         PyClassificationSvmTrain,
         PyClassificationSvmInfer
     )
-    raise ImportError
+    # raise ImportError
 except ImportError:
     from _onedal4py_host import (
         PySvmParams,

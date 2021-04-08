@@ -325,8 +325,10 @@ def getpyexts():
                     libraries=onedal_libraries,
                     library_dirs=ONEDAL_LIBDIRS,
                     language='c++')
+    ONEDAL_2021_3_VERSION = 2021 * 10000 + 3 * 100
 
-    exts.extend(cythonize(ext, compile_time_env={'ONEDAL_VERSION': onedal_version}))
+    if onedal_version >= ONEDAL_2021_3_VERSION:
+        exts.extend(cythonize(ext, compile_time_env={'ONEDAL_VERSION': onedal_version}))
 
     ext = Extension('_daal4py',
                     [os.path.abspath('src/daal4py.cpp'),
@@ -358,7 +360,8 @@ def getpyexts():
                         library_dirs=['onedal'],
                         runtime_library_dirs=runtime_library_dirs,
                         language='c++')
-        exts.extend(cythonize(ext))
+        if onedal_version >= ONEDAL_2021_3_VERSION:
+            exts.extend(cythonize(ext))
         # ext = Extension('_oneapi',
         #                 [os.path.abspath('src/oneapi/oneapi.pyx'), ],
         #                 depends=['src/oneapi/oneapi.h', 'src/oneapi/dpc_backend.h'],

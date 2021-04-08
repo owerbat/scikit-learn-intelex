@@ -29,12 +29,10 @@ KernelDescriptor get_kernel_params(const svm_params & params)
         return KernelDescriptor {}.set_sigma(params.sigma);
     }
 
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
     if constexpr (std::is_same_v<typename KernelDescriptor::tag_t, polynomial_kernel::detail::descriptor_tag>)
     {
         return KernelDescriptor {}.set_scale(params.scale).set_shift(params.shift).set_degree(params.degree);
     }
-#endif
     return KernelDescriptor {};
 }
 
@@ -49,7 +47,6 @@ Result compute_descriptor_impl(Descriptor descriptor, const svm_params & params,
         .set_tau(params.tau)
         .set_shrinking(params.shrinking)
         .set_kernel(get_kernel_params<typename Descriptor::kernel_t>(params));
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
     if constexpr (std::is_same_v<Task, svm::task::classification>)
     {
         descriptor.set_class_count(params.class_count);
@@ -58,7 +55,6 @@ Result compute_descriptor_impl(Descriptor descriptor, const svm_params & params,
     {
         descriptor.set_epsilon(params.epsilon);
     }
-#endif
     if constexpr (std::is_same_v<Result, typename svm::train_result<Task> >)
     {
         return python::train(descriptor, std::forward<Args>(args)...);
@@ -85,14 +81,12 @@ Result compute_impl(svm_params & params, data_type data_type_input, Args &&... a
             return compute_descriptor_impl<Result>(svm::descriptor<float, svm::method::smo, Task, rbf_kernel::descriptor<float> > {}, params,
                                                    std::forward<Args>(args)...);
         }
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
 
         if (data_type_input == data_type::float32 && params.method == "smo" && params.kernel == "poly")
         {
             return compute_descriptor_impl<Result>(svm::descriptor<float, svm::method::smo, Task, polynomial_kernel::descriptor<float> > {}, params,
                                                    std::forward<Args>(args)...);
         }
-#endif
         if (data_type_input == data_type::float64 && params.method == "smo" && params.kernel == "linear")
         {
             return compute_descriptor_impl<Result>(svm::descriptor<double, svm::method::smo, Task, linear_kernel::descriptor<double> > {}, params,
@@ -103,13 +97,11 @@ Result compute_impl(svm_params & params, data_type data_type_input, Args &&... a
             return compute_descriptor_impl<Result>(svm::descriptor<double, svm::method::smo, Task, rbf_kernel::descriptor<double> > {}, params,
                                                    std::forward<Args>(args)...);
         }
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
         else if (data_type_input == data_type::float64 && params.method == "smo" && params.kernel == "poly")
         {
             return compute_descriptor_impl<Result>(svm::descriptor<double, svm::method::smo, Task, polynomial_kernel::descriptor<double> > {}, params,
                                                    std::forward<Args>(args)...);
         }
-#endif
     }
 
     if (data_type_input == data_type::float32 && params.method == "thunder" && params.kernel == "linear")
@@ -258,11 +250,7 @@ PyObject * svm_infer<Task>::get_decision_function()
 
 template class svm_train<svm::task::classification>;
 template class svm_infer<svm::task::classification>;
-
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
 template class svm_train<svm::task::regression>;
 template class svm_infer<svm::task::regression>;
-
-#endif
 
 } // namespace oneapi::dal::python

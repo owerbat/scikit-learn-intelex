@@ -23,12 +23,7 @@
 
 #include "oneapi/dal/algo/linear_kernel.hpp"
 #include "oneapi/dal/algo/rbf_kernel.hpp"
-
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
-
-    #include "oneapi/dal/algo/polynomial_kernel.hpp"
-
-#endif
+#include "oneapi/dal/algo/polynomial_kernel.hpp"
 
 namespace oneapi::dal::python
 {
@@ -82,8 +77,6 @@ private:
     rbf_kernel::compute_result<> compute_result_;
 };
 
-#if ONEDAL_VERSION >= ONEDAL_2021_3_VERSION
-
 struct polynomial_kernel_params
 {
     double scale;
@@ -108,7 +101,5 @@ private:
     polynomial_kernel_params params_;
     polynomial_kernel::compute_result<> compute_result_;
 };
-
-#endif
 
 } // namespace oneapi::dal::python

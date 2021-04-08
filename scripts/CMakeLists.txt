@@ -67,8 +67,9 @@ set(LINK_TYPE "so")
 set(THREADING_TYPE "parallel")
 
 # find_package(oneDAL REQUIRED)
-find_package(Python REQUIRED COMPONENTS Development NumPy)
+find_package(Python3 REQUIRED COMPONENTS Development NumPy)
 message("oneDAL_INCLUDE_DIRS:" ${oneDAL_INCLUDE_DIRS})
+message("Python3_INCLUDE_DIRS:" ${Python3_INCLUDE_DIRS})
 message("DPCTL_INCLUDE_DIR:" ${DPCTL_INCLUDE_DIR})
 message("DPCTL_LIB_DIR:" ${DPCTL_LIB_DIR})
 
@@ -80,8 +81,8 @@ add_library(${TARGET}
 target_include_directories(${TARGET}
     PRIVATE ${PYTHON_ONEDAL}
     PRIVATE ${oneDAL_INCLUDE_DIRS}
-    PRIVATE ${Python_INCLUDE_DIRS}
-    PRIVATE ${Python_NumPy_INCLUDE_DIRS}
+    PRIVATE ${Python3_INCLUDE_DIRS}
+    PRIVATE ${Python3_NumPy_INCLUDE_DIRS}
 )
 
 target_compile_definitions(${TARGET}
@@ -91,7 +92,7 @@ target_compile_definitions(${TARGET}
 
 target_link_libraries(${TARGET}
     PRIVATE ${DPCPP_OPENCL_LIBRARY}
-    PRIVATE ${Python_LIBRARIES}
+    PRIVATE ${Python3_LIBRARIES}
 )
 
 # TODO: Get from findOneDAL

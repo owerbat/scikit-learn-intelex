@@ -9,5 +9,7 @@ cimport numpy as npc
 
 npc.import_array()
 
+DEF ONEDAL_2021_3_VERSION = (2021 * 10000 + 3 * 100)
+
 include "svm/svm.pyx"
 include "prims/kernel_functions.pyx"

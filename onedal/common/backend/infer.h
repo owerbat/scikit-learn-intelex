@@ -20,6 +20,9 @@
 
 #ifdef ONEDAL_DATA_PARALLEL
     #include <CL/sycl.hpp>
+#endif
+
+#ifdef DPCTL_ENABLE
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
 #endif
@@ -29,7 +32,7 @@ namespace oneapi::dal::python
 template <typename... Args>
 auto infer(Args &&... args)
 {
-#ifdef ONEDAL_DATA_PARALLEL
+#if defined(DPCTL_ENABLE)
     auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
     if (dpctl_queue != NULL)
     {
@@ -40,6 +43,9 @@ auto infer(Args &&... args)
     {
         throw std::runtime_error("Cannot set daal context: Pointer to queue object is NULL");
     }
+#elif defined(ONEDAL_DATA_PARALLEL)
+    cl::sycl::queue sycl_queue;
+    return dal::infer(sycl_queue, std::forward<Args>(args)...);
 #else
     return dal::infer(std::forward<Args>(args)...);
 #endif

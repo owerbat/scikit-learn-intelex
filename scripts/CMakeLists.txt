@@ -16,8 +16,7 @@
 
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-# set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 set(TARGET "dpc_backend")
 
 if(NOT DEFINED ENV{DPCPPROOT})
@@ -32,7 +31,7 @@ if(WIN32)
     message(STATUS "Resetting CXX compiler to: " ${CMAKE_CXX_COMPILER})
     message(STATUS "Resetting C compiler to: " ${CMAKE_C_COMPILER})
     message(STATUS "Resetting Linker to: " ${CMAKE_LINKER})
-    # set(WARNING_FLAGS "-Wextra -Winit-self -Wuninitialized -Wmissing-declarations")
+    set(WARNING_FLAGS "-Winit-self -Wmissing-declarations -Wno-null-conversion")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARNING_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_FLAGS} -Qstd=c++17 /EHsc")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${WARNING_FLAGS} -ggdb3 -DDEBUG")
@@ -41,7 +40,7 @@ elseif(UNIX)
     set(CMAKE_CXX_COMPILER "dpcpp")
     set(CMAKE_C_COMPILER "clang")
     set(SDL_FLAGS "-fstack-protector -fstack-protector-all -fpic -fPIC -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -fno-strict-overflow -fno-delete-null-pointer-checks")
-    # set(WARNING_FLAGS "-Wextra -Winit-self -Wuninitialized -Wmissing-declarations -fdiagnostics-color=auto")
+    set(WARNING_FLAGS "-Winit-self -Wmissing-declarations -Wno-null-conversion")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARNING_FLAGS} ${SDL_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_FLAGS} ${SDL_FLAGS} -std=c++17 -fsycl")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${WARNING_FLAGS} -ggdb3 -DDEBUG")
@@ -69,13 +68,9 @@ set(THREADING_TYPE "parallel")
 
 # find_package(oneDAL REQUIRED)
 find_package(Python REQUIRED COMPONENTS Development NumPy)
-message("python include dir:" ${Python_INCLUDE_DIRS})
-message("python libraries:" ${Python_LIBRARY_DIRS})
 message("oneDAL_INCLUDE_DIRS:" ${oneDAL_INCLUDE_DIRS})
-message("DPCPP_SYCL_LIBRARY:" ${DPCPP_SYCL_LIBRARY})
-message("DPCPP_OPENCL_LIBRARY:" ${DPCPP_OPENCL_LIBRARY})
-message("Python_LIBRARY_DIRS:" ${Python_LIBRARY_DIRS})
-message("Python_LIBRARIES:" ${Python_LIBRARIES})
+message("DPCTL_INCLUDE_DIR:" ${DPCTL_INCLUDE_DIR})
+message("DPCTL_LIB_DIR:" ${DPCTL_LIB_DIR})
 
 add_library(${TARGET}
     SHARED

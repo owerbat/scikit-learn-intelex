@@ -54,25 +54,6 @@ cdef class PyClassificationSvmModel:
     def __getstate__(self):
         raise NotImplementedError("serialize not avalible for onedal models")
 
-cdef class PyRegressionSvmModel:
-    cdef model[regression] * thisptr
-
-    def __cinit__(self):
-        self.thisptr = new model[regression]()
-
-    def __dealloc__(self):
-        del self.thisptr
-
-    def __setstate__(self, state):
-        # TODO: need serialize of models on c++ side
-        # if isinstance(state, bytes):
-        #    self.thisptr = svm_model[svm_model[regression]](state)
-        # else:
-        raise NotImplementedError("serialize not avalible for onedal models")
-
-    def __getstate__(self):
-        raise NotImplementedError("serialize not avalible for onedal models")
-
 
 cdef class PyClassificationSvmTrain:
     cdef svm_train[classification] * thisptr
@@ -125,50 +106,72 @@ cdef class PyClassificationSvmInfer:
     def get_decision_function(self):
         return < object > self.thisptr.get_decision_function()
 
-cdef class PyRegressionSvmTrain:
-    cdef svm_train[regression] * thisptr
+IF ONEDAL_VERSION >= ONEDAL_2021_3_VERSION:
 
-    def __cinit__(self, PySvmParams params):
-        self.thisptr = new svm_train[regression](& params.pt)
+    cdef class PyRegressionSvmModel:
+        cdef model[regression] * thisptr
 
-    def __dealloc__(self):
-        del self.thisptr
+        def __cinit__(self):
+            self.thisptr = new model[regression]()
 
-    def train(self, data, labels, weights):
-        self.thisptr.train( < PyObject * >data, < PyObject * >labels, < PyObject * >weights)
+        def __dealloc__(self):
+            del self.thisptr
 
-    def get_support_vectors(self):
-        return < object > self.thisptr.get_support_vectors()
+        def __setstate__(self, state):
+            # TODO: need serialize of models on c++ side
+            # if isinstance(state, bytes):
+            #    self.thisptr = svm_model[svm_model[regression]](state)
+            # else:
+            raise NotImplementedError("serialize not avalible for onedal models")
 
-    def get_support_indices(self):
-        return < object > self.thisptr.get_support_indices()
-
-    def get_coeffs(self):
-        return < object > self.thisptr.get_coeffs()
-
-    def get_biases(self):
-        return < object > self.thisptr.get_biases()
-
-    def get_model(self):
-        cdef PyRegressionSvmModel res = PyRegressionSvmModel.__new__(PyRegressionSvmModel)
-        res.thisptr[0] = self.thisptr.get_model()
-        return res
+        def __getstate__(self):
+            raise NotImplementedError("serialize not avalible for onedal models")
 
 
-cdef class PyRegressionSvmInfer:
-    cdef svm_infer[regression] * thisptr
+    cdef class PyRegressionSvmTrain:
+        cdef svm_train[regression] * thisptr
 
-    def __cinit__(self, PySvmParams params):
-        self.thisptr = new svm_infer[regression](& params.pt)
+        def __cinit__(self, PySvmParams params):
+            self.thisptr = new svm_train[regression](& params.pt)
 
-    def __dealloc__(self):
-        del self.thisptr
+        def __dealloc__(self):
+            del self.thisptr
 
-    def infer(self, data, PyRegressionSvmModel model):
-        self.thisptr.infer( < PyObject * >data, model.thisptr)
+        def train(self, data, labels, weights):
+            self.thisptr.train( < PyObject * >data, < PyObject * >labels, < PyObject * >weights)
 
-    def infer_builder(self, data, support_vectors, coeffs, biases):
-        self.thisptr.infer( < PyObject * >data, < PyObject * >support_vectors, < PyObject * >coeffs, < PyObject * >biases)
+        def get_support_vectors(self):
+            return < object > self.thisptr.get_support_vectors()
 
-    def get_labels(self):
-        return < object > self.thisptr.get_labels()
+        def get_support_indices(self):
+            return < object > self.thisptr.get_support_indices()
+
+        def get_coeffs(self):
+            return < object > self.thisptr.get_coeffs()
+
+        def get_biases(self):
+            return < object > self.thisptr.get_biases()
+
+        def get_model(self):
+            cdef PyRegressionSvmModel res = PyRegressionSvmModel.__new__(PyRegressionSvmModel)
+            res.thisptr[0] = self.thisptr.get_model()
+            return res
+
+
+    cdef class PyRegressionSvmInfer:
+        cdef svm_infer[regression] * thisptr
+
+        def __cinit__(self, PySvmParams params):
+            self.thisptr = new svm_infer[regression](& params.pt)
+
+        def __dealloc__(self):
+            del self.thisptr
+
+        def infer(self, data, PyRegressionSvmModel model):
+            self.thisptr.infer( < PyObject * >data, model.thisptr)
+
+        def infer_builder(self, data, support_vectors, coeffs, biases):
+            self.thisptr.infer( < PyObject * >data, < PyObject * >support_vectors, < PyObject * >coeffs, < PyObject * >biases)
+
+        def get_labels(self):
+            return < object > self.thisptr.get_labels()

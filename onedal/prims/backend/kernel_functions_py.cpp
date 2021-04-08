@@ -117,6 +117,8 @@ PyObject * rbf_kernel_compute::get_values()
     return _table_to_numpy(compute_result_.get_values());
 }
 
+#if INTEL_DAAL_VERSION >= ONEDAL_2021_3_VERSION
+
 polynomial_kernel_compute::polynomial_kernel_compute(polynomial_kernel_params * params) : params_(*params) {}
 
 // attributes from compute_input
@@ -134,5 +136,7 @@ PyObject * polynomial_kernel_compute::get_values()
 {
     return _table_to_numpy(compute_result_.get_values());
 }
+
+#endif
 
 } // namespace oneapi::dal::python

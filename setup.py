@@ -30,6 +30,7 @@ from Cython.Build import cythonize
 import glob
 import numpy as np
 import scripts.build_backend as build_backend
+from scripts.version import get_onedal_version
 
 try:
     from ctypes.utils import find_library
@@ -41,6 +42,9 @@ IS_MAC = False
 IS_LIN = False
 
 dal_root = os.environ.get('DALROOT')
+
+if dal_root is None:
+    raise RuntimeError("Not set DALROOT variable")
 
 if 'linux' in sys.platform:
     IS_LIN = True
@@ -305,6 +309,9 @@ def getpyexts():
     print(pyx_host_files + cpp_files)
     exts = []
 
+    onedal_version = get_onedal_version(dal_root)
+    print(onedal_version)
+
     ext = Extension('_onedal4py_host',
                     sources=[main_host_pyx] + cpp_files,
                     include_dirs=include_dir_plat + [np.get_include()],
@@ -313,27 +320,28 @@ def getpyexts():
                     define_macros=[
                         ('NPY_NO_DEPRECATED_API',
                          'NPY_1_7_API_VERSION'),
+                        ('ONEDAL_VERSION', onedal_version),
                     ],
                     libraries=onedal_libraries,
                     library_dirs=ONEDAL_LIBDIRS,
                     language='c++')
 
-    exts.extend(cythonize(ext))
+    exts.extend(cythonize(ext, compile_time_env={'ONEDAL_VERSION': onedal_version}))
 
-    # ext = Extension('_daal4py',
-    #                 [os.path.abspath('src/daal4py.cpp'),
-    #                  os.path.abspath('build/daal4py_cpp.cpp'),
-    #                  os.path.abspath('build/daal4py_cy.pyx')]
-    #                 + DIST_CPPS,
-    #                 depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
-    #                 include_dirs=include_dir_plat + [np.get_include()],
-    #                 extra_compile_args=eca,
-    #                 define_macros=get_daal_type_defines(),
-    #                 extra_link_args=ela,
-    #                 libraries=libraries_plat,
-    #                 library_dirs=ONEDAL_LIBDIRS,
-    #                 language='c++')
-    # exts.extend(cythonize(ext))
+    ext = Extension('_daal4py',
+                    [os.path.abspath('src/daal4py.cpp'),
+                     os.path.abspath('build/daal4py_cpp.cpp'),
+                     os.path.abspath('build/daal4py_cy.pyx')]
+                    + DIST_CPPS,
+                    depends=glob.glob(jp(os.path.abspath('src'), '*.h')),
+                    include_dirs=include_dir_plat + [np.get_include()],
+                    extra_compile_args=eca,
+                    define_macros=get_daal_type_defines(),
+                    extra_link_args=ela,
+                    libraries=libraries_plat,
+                    library_dirs=ONEDAL_LIBDIRS,
+                    language='c++')
+    exts.extend(cythonize(ext))
 
     if dpcpp:
         if IS_LIN or IS_MAC:
@@ -410,7 +418,7 @@ def gen_pyx(odir):
                 no_dist=no_dist, no_stream=no_stream)
 
 
-# gen_pyx(os.path.abspath('./build'))
+gen_pyx(os.path.abspath('./build'))
 
 
 def distutils_dir_name(dname):

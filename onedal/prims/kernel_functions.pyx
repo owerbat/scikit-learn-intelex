@@ -83,27 +83,29 @@ cdef class PyRbfKernelCompute:
     def get_values(self):
         return <object>self.thisptr.get_values()
 
-@cython.auto_pickle(True)
-cdef class PyPolyKernelParams:
-    cdef polynomial_kernel_params pt
+IF ONEDAL_VERSION >= ONEDAL_2021_3_VERSION:
 
-    def __init__(self, scale, shift, degree):
-        self.pt.scale = scale
-        self.pt.shift = shift
-        self.pt.degree = degree
+    @cython.auto_pickle(True)
+    cdef class PyPolyKernelParams:
+        cdef polynomial_kernel_params pt
+
+        def __init__(self, scale, shift, degree):
+            self.pt.scale = scale
+            self.pt.shift = shift
+            self.pt.degree = degree
 
 
-cdef class PyPolyKernelCompute:
-    cdef polynomial_kernel_compute * thisptr
+    cdef class PyPolyKernelCompute:
+        cdef polynomial_kernel_compute * thisptr
 
-    def __cinit__(self, PyPolyKernelParams params):
-        self.thisptr = new polynomial_kernel_compute(&params.pt)
+        def __cinit__(self, PyPolyKernelParams params):
+            self.thisptr = new polynomial_kernel_compute(&params.pt)
 
-    def __dealloc__(self):
-        del self.thisptr
+        def __dealloc__(self):
+            del self.thisptr
 
-    def compute(self, x, y):
-        self.thisptr.compute(<PyObject *>x, <PyObject *>y)
+        def compute(self, x, y):
+            self.thisptr.compute(<PyObject *>x, <PyObject *>y)
 
-    def get_values(self):
-        return <object>self.thisptr.get_values()
+        def get_values(self):
+            return <object>self.thisptr.get_values()

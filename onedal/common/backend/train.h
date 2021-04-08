@@ -18,8 +18,11 @@
 
 #include <numpy/arrayobject.h>
 
-#ifdef _DPCPP_
+#ifdef ONEDAL_DATA_PARALLEL
     #include <CL/sycl.hpp>
+#endif
+
+#ifdef DPCTL_ENABLE
     #include "dpctl_sycl_types.h"
     #include "dpctl_sycl_queue_manager.h"
 #endif
@@ -29,7 +32,7 @@ namespace oneapi::dal::python
 template <typename... Args>
 auto train(Args &&... args)
 {
-#ifdef _DPCPP_
+#if defined(DPCTL_ENABLE)
     auto dpctl_queue = DPCTLQueueMgr_GetCurrentQueue();
     if (dpctl_queue != NULL)
     {
@@ -40,6 +43,9 @@ auto train(Args &&... args)
     {
         throw std::runtime_error("Cannot set daal context: Pointer to queue object is NULL");
     }
+#elif defined(ONEDAL_DATA_PARALLEL)
+    cl::sycl::queue sycl_queue;
+    return dal::train(sycl_queue, std::forward<Args>(args)...);
 #else
     return dal::train(std::forward<Args>(args)...);
 #endif

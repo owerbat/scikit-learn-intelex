@@ -17,12 +17,17 @@
 import numpy as np
 from scipy import sparse as sp
 # import logging
+from distutils.version import LooseVersion
 
 from sklearn.svm import SVR as sklearn_SVR
 from sklearn.svm import SVC as sklearn_SVC
 from sklearn.utils.validation import _deprecate_positional_args
 from sklearn.utils.multiclass import _ovr_decision_function
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.exceptions import NotFittedError
+from sklearn import __version__ as sklearn_version
 
 from onedal.svm import SVR as onedal_SVR
 from onedal.svm import SVC as onedal_SVC
@@ -63,6 +68,7 @@ class SVR(sklearn_SVR):
             self._dual_coef_ = self.dual_coef_
             self._n_support = [self.support_vectors_.shape[0],]
             self._sparse = False
+            self._gamma = self._onedal_model._gamma
             self._probA = None
             self._probB = None
         else:
@@ -126,7 +132,7 @@ class SVC(sklearn_SVC):
             else:
                 self.class_weight_ = self._onedal_model.class_weight_
 
-            self.support_vectors_ = self._onedal_model.class_weight_
+            self.support_vectors_ = self._onedal_model.support_vectors_
             self.fit_status_ = 0
             self.dual_coef_ = self._onedal_model.dual_coef_
             self.intercept_ = self._onedal_model.intercept_
@@ -134,8 +140,42 @@ class SVC(sklearn_SVC):
             self.classes_ = self._onedal_model.classes_
             self.support_ = self._onedal_model.support_
 
+            self._dual_coef_ = self.dual_coef_
             self._n_support = self._onedal_model._n_support
             self._sparse = False
+            self._gamma = self._onedal_model._gamma
+            if self.probability:
+                length = int(len(self.classes_) * (len(self.classes_) - 1) / 2)
+                self._probA = np.zeros(length)
+                self._probB = np.zeros(length)
+            else:
+                self._probA = np.empty(0)
+                self._probB = np.empty(0)
+
+            if self.probability:
+                params = self.get_params()
+                params["probability"] = False
+                params["decision_function_shape"] = 'ovr'
+                clf_base = SVC(**params)
+                try:
+                    n_splits = 5
+                    cv = StratifiedKFold(
+                        n_splits=n_splits,
+                        shuffle=True,
+                        random_state=self.random_state)
+                    if LooseVersion(sklearn_version) >= LooseVersion("0.24"):
+                        self.clf_prob = CalibratedClassifierCV(
+                            clf_base, ensemble=False, cv=cv, method='sigmoid',
+                            n_jobs=n_splits)
+                    else:
+                        self.clf_prob = CalibratedClassifierCV(
+                            clf_base, cv=cv, method='sigmoid')
+                    self.clf_prob.fit(X, y, sample_weight)
+                except ValueError:
+                    clf_base = clf_base.fit(X, y, sample_weight)
+                    self.clf_prob = CalibratedClassifierCV(
+                        clf_base, cv="prefit", method='sigmoid')
+                    self.clf_prob.fit(X, y, sample_weight)
         else:
             print('sklearn.svm.SVC.fit stock')
             # logging.info("sklearn.svm.SVC.fit: " + get_patch_message("sklearn"))
@@ -151,15 +191,21 @@ class SVC(sklearn_SVC):
             print('sklearn.svm.SVC.predict stock')
             return sklearn_SVC.predict(self, X)
 
-    def decision_function(self, X):
+    def _predict_proba(self, X):
+        if hasattr(self, '_onedal_model') and not sp.isspmatrix(X):
+            print('sklearn.svm.SVC.predict_proba oneDAL')
+            if getattr(self, 'clf_prob', None) is None:
+                raise NotFittedError(
+                    "predict_proba is not available when fitted with probability=False")
+            return self.clf_prob.predict_proba(X)
+        else:
+            print('sklearn.svm.SVC.predict_proba stock')
+            return sklearn_SVC._predict_proba(self, X)
+
+    def _decision_function(self, X):
         if hasattr(self, '_onedal_model') and not sp.isspmatrix(X):
             print('sklearn.svm.SVC.decision_function oneDAL')
-            dec = self._onedal_model.decision_function(X)
+            return self._onedal_model.decision_function(X)
         else:
             print('sklearn.svm.SVC.decision_function stock')
-            dec = sklearn_SVC.decision_function(self, X)
-
-        if self.decision_function_shape == 'ovr' and len(self.classes_) > 2:
-            return _ovr_decision_function(dec < 0, -dec, len(self.classes_))
-
-        return dec
+            return sklearn_SVC._decision_function(self, X)

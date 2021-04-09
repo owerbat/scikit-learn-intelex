@@ -97,6 +97,13 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         return _column_or_1d(y).astype(dtype, copy=False)
 
     def _fit(self, X, y, sample_weight, Computer):
+        if hasattr(self, 'decision_function_shape'):
+            if self.decision_function_shape not in ('ovr', 'ovo', None):
+                raise ValueError(
+                    f"decision_function_shape must be either 'ovr' or 'ovo', "
+                    f"got {self.decision_function_shape}."
+                )
+
         if y is None:
             if self._get_tags()['requires_y']:
                 raise ValueError(
@@ -134,6 +141,7 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
         if getattr(self, 'classes_', None) is not None:
             self._n_support = np.array([
                 np.sum(y[self.support_] == label) for label in self.classes_])
+        self._gamma = scale
 
         self._onedal_model = c_svm.get_model()
         return self
@@ -162,19 +170,14 @@ class BaseSVM(BaseEstimator, metaclass=ABCMeta):
 
     def _decision_function(self, X):
         _check_is_fitted(self)
-        print('check_array')
         X = _check_array(
             X, dtype=[np.float64, np.float32], force_all_finite=True)
-        print('PyClassificationSvmInfer')
         c_svm = PyClassificationSvmInfer(self._onedal_params)
         if self._onedal_model:
-            print('infer')
             c_svm.infer(X, self._onedal_model)
         else:
-            print('infer_builder')
             c_svm.infer_builder(X, self.support_vectors_,
                                 self.dual_coef_.T, self.intercept_)
-        print('get_decision_function')
         decision_function = c_svm.get_decision_function()
         if len(self.classes_) == 2:
             return decision_function.ravel()
@@ -236,7 +239,7 @@ class SVC(ClassifierMixin, BaseSVM):
         y = super()._predict(X, PyClassificationSvmInfer)
         if len(self.classes_) == 2:
             y = y.ravel()
-        return self.classes_.take(np.asarray(y, dtype=np.intp))
+        return self.classes_.take(np.asarray(y, dtype=np.intp)).ravel()
 
     def decision_function(self, X):
         return super()._decision_function(X)

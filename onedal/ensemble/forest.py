@@ -14,9 +14,10 @@
 # limitations under the License.
 #===============================================================================
 
-from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
+from sklearn.base import BaseEstimator
 from abc import ABCMeta, abstractmethod
 import numbers
+import warnings
 from math import ceil
 
 import numpy as np
@@ -30,7 +31,8 @@ from ..datatypes import (
     _check_n_features
 )
 
-from ..common._policy import _HostPolicy
+from ..common._mixin import ClassifierMixin, RegressorMixin
+from ..common._policy import _get_policy
 from ..datatypes._data_conversion import from_table, to_table
 from onedal import _backend
 
@@ -154,17 +156,77 @@ class BaseForest(BaseEstimator, metaclass=ABCMeta):
             'variable_importance_mode': self.variable_importance_mode,
         }
 
-    def _fit(self, X, y, sample_weight, module):
+    def _check_parameters(self):
+        if isinstance(self.min_samples_leaf, numbers.Integral):
+            if not 1 <= self.min_samples_leaf:
+                raise ValueError("min_samples_leaf must be at least 1 "
+                                 "or in (0, 0.5], got %s"
+                                 % self.min_samples_leaf)
+        else:  # float
+            if not 0. < self.min_samples_leaf <= 0.5:
+                raise ValueError("min_samples_leaf must be at least 1 "
+                                 "or in (0, 0.5], got %s"
+                                 % self.min_samples_leaf)
+        if isinstance(self.min_samples_split, numbers.Integral):
+            if not 2 <= self.min_samples_split:
+                raise ValueError("min_samples_split must be an integer "
+                                 "greater than 1 or a float in (0.0, 1.0]; "
+                                 "got the integer %s"
+                                 % self.min_samples_split)
+        else:  # float
+            if not 0. < self.min_samples_split <= 1.:
+                raise ValueError("min_samples_split must be an integer "
+                                 "greater than 1 or a float in (0.0, 1.0]; "
+                                 "got the float %s"
+                                 % self.min_samples_split)
+        if not 0 <= self.min_weight_fraction_leaf <= 0.5:
+            raise ValueError("min_weight_fraction_leaf must in [0, 0.5]")
+        if self.min_impurity_split is not None:
+            warnings.warn("The min_impurity_split parameter is deprecated. "
+                          "Its default value has changed from 1e-7 to 0 in "
+                          "version 0.23, and it will be removed in 0.25. "
+                          "Use the min_impurity_decrease parameter instead.",
+                          FutureWarning)
+
+            if self.min_impurity_split < 0.:
+                raise ValueError("min_impurity_split must be greater than "
+                                 "or equal to 0")
+        if self.min_impurity_decrease < 0.:
+            raise ValueError("min_impurity_decrease must be greater than "
+                             "or equal to 0")
+        if self.max_leaf_nodes is not None:
+            if not isinstance(self.max_leaf_nodes, numbers.Integral):
+                raise ValueError("max_leaf_nodes must be integral number but was "
+                                 "%r" % self.max_leaf_nodes)
+            if self.max_leaf_nodes < 2:
+                raise ValueError(("max_leaf_nodes {0} must be either None "
+                                  "or larger than 1").format(self.max_leaf_nodes))
+        if isinstance(self.max_bins, numbers.Integral):
+            if not 2 <= self.max_bins:
+                raise ValueError("maxBins must be at least 2, got %s"
+                                 % self.maxBins)
+        else:
+            raise ValueError("max_bins must be integral number but was "
+                             "%r" % self.max_bins)
+        if isinstance(self.min_bin_size, numbers.Integral):
+            if not 1 <= self.min_bin_size:
+                raise ValueError("min_bin_size must be at least 1, got %s"
+                                 % self.min_bin_size)
+        else:
+            raise ValueError("min_bin_size must be integral number but was "
+                             "%r" % self.min_bin_size)
+
+    def _fit(self, X, y, sample_weight, module, queue):
         pass
 
-    def _predict(self, X, module):
+    def _predict(self, X, module, queue):
         pass
 
-    def _predict_proba(self, X, module):
+    def _predict_proba(self, X, module, queue):
         pass
 
 
-class RandomForestClassifier(BaseForest):
+class RandomForestClassifier(ClassifierMixin, BaseForest):
     def __init__(self,
                  n_estimators=100,
                  criterion="gini",
@@ -203,18 +265,19 @@ class RandomForestClassifier(BaseForest):
             variable_importance_mode=variable_importance_mode, algorithm=algorithm)
         self.is_classification = True
 
-    def fit(self, X, y, sample_weight=None):
-        return super()._fit(X, y, sample_weight, _backend.decision_forest.classification)
+    def fit(self, X, y, sample_weight=None, queue=None):
+        return super()._fit(X, y, sample_weight,
+                            _backend.decision_forest.classification, queue)
 
-    def predict(self, X):
-        pred = super()._predict(X, _backend.decision_forest.classification)
+    def predict(self, X, queue=None):
+        pred = super()._predict(X, _backend.decision_forest.classification, queue)
         return np.take(self.classes_, pred.ravel().astype(np.int64, casting='unsafe'))
 
-    def predict_proba(self, X):
-        pass
+    def predict_proba(self, X, queue=None):
+        return super()._predict_proba(X, queue)
 
 
-class RandomForestRegressor(BaseForest):
+class RandomForestRegressor(RegressorMixin, BaseForest):
     def __init__(self,
                  n_estimators=100,
                  criterion="squared_error",
@@ -253,8 +316,9 @@ class RandomForestRegressor(BaseForest):
             variable_importance_mode=variable_importance_mode, algorithm=algorithm)
         self.is_classification = False
 
-    def fit(self, X, y, sample_weight=None):
-        return super()._fit(X, y, sample_weight, _backend.decision_forest.regression)
+    def fit(self, X, y, sample_weight=None, queue=None):
+        return super()._fit(X, y, sample_weight,
+                            _backend.decision_forest.regression, queue)
 
-    def predict(self, X):
-        return super()._predict(X, _backend.decision_forest.regression).ravel()
+    def predict(self, X, queue=None):
+        return super()._predict(X, _backend.decision_forest.regression, queue).ravel()

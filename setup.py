@@ -431,7 +431,8 @@ setup(
         'onedal.svm',
         'onedal.primitives',
         'onedal.datatypes',
-        'onedal.common'
+        'onedal.common',
+        'onedal.ensemble'
     ]),
     package_data={
         'daal4py.oneapi': [

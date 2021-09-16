@@ -18,6 +18,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "oneapi/dal/table/homogen.hpp"
 #include "oneapi/dal/table/detail/csr.hpp"
